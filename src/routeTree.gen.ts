@@ -10,33 +10,182 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminCalendarRouteImport } from './routes/_authenticated/admin.calendar'
+import { Route as AuthenticatedAdminCountriesRouteImport } from './routes/_authenticated/admin.countries'
+import { Route as AuthenticatedAdminEditionsRouteImport } from './routes/_authenticated/admin.editions'
+import { Route as AuthenticatedAdminResponsesRouteImport } from './routes/_authenticated/admin.responses'
+import { Route as AuthenticatedAdminRoundsRouteImport } from './routes/_authenticated/admin.rounds'
+import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
+import { Route as AuthenticatedAdminResponsesIndexRouteImport } from './routes/_authenticated/admin.responses.index'
+import { Route as AuthenticatedAdminResponsesIdRouteImport } from './routes/_authenticated/admin.responses.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminCalendarRoute =
+  AuthenticatedAdminCalendarRouteImport.update({
+    id: '/calendar',
+    path: '/calendar',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminCountriesRoute =
+  AuthenticatedAdminCountriesRouteImport.update({
+    id: '/countries',
+    path: '/countries',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminEditionsRoute =
+  AuthenticatedAdminEditionsRouteImport.update({
+    id: '/editions',
+    path: '/editions',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminResponsesRoute =
+  AuthenticatedAdminResponsesRouteImport.update({
+    id: '/responses',
+    path: '/responses',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminRoundsRoute =
+  AuthenticatedAdminRoundsRouteImport.update({
+    id: '/rounds',
+    path: '/rounds',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSettingsRoute =
+  AuthenticatedAdminSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminResponsesIndexRoute =
+  AuthenticatedAdminResponsesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminResponsesRoute,
+  } as any)
+const AuthenticatedAdminResponsesIdRoute =
+  AuthenticatedAdminResponsesIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAdminResponsesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/admin/countries': typeof AuthenticatedAdminCountriesRoute
+  '/admin/editions': typeof AuthenticatedAdminEditionsRoute
+  '/admin/responses': typeof AuthenticatedAdminResponsesRouteWithChildren
+  '/admin/rounds': typeof AuthenticatedAdminRoundsRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/admin/responses/$id': typeof AuthenticatedAdminResponsesIdRoute
+  '/admin/responses/': typeof AuthenticatedAdminResponsesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/admin/countries': typeof AuthenticatedAdminCountriesRoute
+  '/admin/editions': typeof AuthenticatedAdminEditionsRoute
+  '/admin/rounds': typeof AuthenticatedAdminRoundsRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin/responses/$id': typeof AuthenticatedAdminResponsesIdRoute
+  '/admin/responses': typeof AuthenticatedAdminResponsesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/_authenticated/admin/countries': typeof AuthenticatedAdminCountriesRoute
+  '/_authenticated/admin/editions': typeof AuthenticatedAdminEditionsRoute
+  '/_authenticated/admin/responses': typeof AuthenticatedAdminResponsesRouteWithChildren
+  '/_authenticated/admin/rounds': typeof AuthenticatedAdminRoundsRoute
+  '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/admin/responses/$id': typeof AuthenticatedAdminResponsesIdRoute
+  '/_authenticated/admin/responses/': typeof AuthenticatedAdminResponsesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/admin/calendar'
+    | '/admin/countries'
+    | '/admin/editions'
+    | '/admin/responses'
+    | '/admin/rounds'
+    | '/admin/settings'
+    | '/admin/'
+    | '/admin/responses/$id'
+    | '/admin/responses/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/admin/calendar'
+    | '/admin/countries'
+    | '/admin/editions'
+    | '/admin/rounds'
+    | '/admin/settings'
+    | '/admin'
+    | '/admin/responses/$id'
+    | '/admin/responses'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/admin'
+    | '/_authenticated/admin/calendar'
+    | '/_authenticated/admin/countries'
+    | '/_authenticated/admin/editions'
+    | '/_authenticated/admin/responses'
+    | '/_authenticated/admin/rounds'
+    | '/_authenticated/admin/settings'
+    | '/_authenticated/admin/'
+    | '/_authenticated/admin/responses/$id'
+    | '/_authenticated/admin/responses/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +197,150 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/calendar': {
+      id: '/_authenticated/admin/calendar'
+      path: '/calendar'
+      fullPath: '/admin/calendar'
+      preLoaderRoute: typeof AuthenticatedAdminCalendarRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/countries': {
+      id: '/_authenticated/admin/countries'
+      path: '/countries'
+      fullPath: '/admin/countries'
+      preLoaderRoute: typeof AuthenticatedAdminCountriesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/editions': {
+      id: '/_authenticated/admin/editions'
+      path: '/editions'
+      fullPath: '/admin/editions'
+      preLoaderRoute: typeof AuthenticatedAdminEditionsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/responses': {
+      id: '/_authenticated/admin/responses'
+      path: '/responses'
+      fullPath: '/admin/responses'
+      preLoaderRoute: typeof AuthenticatedAdminResponsesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/rounds': {
+      id: '/_authenticated/admin/rounds'
+      path: '/rounds'
+      fullPath: '/admin/rounds'
+      preLoaderRoute: typeof AuthenticatedAdminRoundsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/settings': {
+      id: '/_authenticated/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AuthenticatedAdminSettingsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/responses/': {
+      id: '/_authenticated/admin/responses/'
+      path: '/'
+      fullPath: '/admin/responses/'
+      preLoaderRoute: typeof AuthenticatedAdminResponsesIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminResponsesRoute
+    }
+    '/_authenticated/admin/responses/$id': {
+      id: '/_authenticated/admin/responses/$id'
+      path: '/$id'
+      fullPath: '/admin/responses/$id'
+      preLoaderRoute: typeof AuthenticatedAdminResponsesIdRouteImport
+      parentRoute: typeof AuthenticatedAdminResponsesRoute
+    }
   }
 }
 
+interface AuthenticatedAdminResponsesRouteChildren {
+  AuthenticatedAdminResponsesIdRoute: typeof AuthenticatedAdminResponsesIdRoute
+  AuthenticatedAdminResponsesIndexRoute: typeof AuthenticatedAdminResponsesIndexRoute
+}
+
+const AuthenticatedAdminResponsesRouteChildren: AuthenticatedAdminResponsesRouteChildren =
+  {
+    AuthenticatedAdminResponsesIdRoute: AuthenticatedAdminResponsesIdRoute,
+    AuthenticatedAdminResponsesIndexRoute:
+      AuthenticatedAdminResponsesIndexRoute,
+  }
+
+const AuthenticatedAdminResponsesRouteWithChildren =
+  AuthenticatedAdminResponsesRoute._addFileChildren(
+    AuthenticatedAdminResponsesRouteChildren,
+  )
+
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminCalendarRoute: typeof AuthenticatedAdminCalendarRoute
+  AuthenticatedAdminCountriesRoute: typeof AuthenticatedAdminCountriesRoute
+  AuthenticatedAdminEditionsRoute: typeof AuthenticatedAdminEditionsRoute
+  AuthenticatedAdminResponsesRoute: typeof AuthenticatedAdminResponsesRouteWithChildren
+  AuthenticatedAdminRoundsRoute: typeof AuthenticatedAdminRoundsRoute
+  AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminCalendarRoute: AuthenticatedAdminCalendarRoute,
+  AuthenticatedAdminCountriesRoute: AuthenticatedAdminCountriesRoute,
+  AuthenticatedAdminEditionsRoute: AuthenticatedAdminEditionsRoute,
+  AuthenticatedAdminResponsesRoute:
+    AuthenticatedAdminResponsesRouteWithChildren,
+  AuthenticatedAdminRoundsRoute: AuthenticatedAdminRoundsRoute,
+  AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
+
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
