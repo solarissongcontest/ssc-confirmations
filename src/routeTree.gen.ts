@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminCalendarRouteImport } from './routes/_authenticated/admin.calendar'
+import { Route as AuthenticatedAdminCountriesRouteImport } from './routes/_authenticated/admin.countries'
 import { Route as AuthenticatedAdminEditionsRouteImport } from './routes/_authenticated/admin.editions'
 import { Route as AuthenticatedAdminResponsesRouteImport } from './routes/_authenticated/admin.responses'
 import { Route as AuthenticatedAdminRoundsRouteImport } from './routes/_authenticated/admin.rounds'
@@ -49,6 +50,12 @@ const AuthenticatedAdminCalendarRoute =
   AuthenticatedAdminCalendarRouteImport.update({
     id: '/calendar',
     path: '/calendar',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminCountriesRoute =
+  AuthenticatedAdminCountriesRouteImport.update({
+    id: '/countries',
+    path: '/countries',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminEditionsRoute =
@@ -87,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/admin/countries': typeof AuthenticatedAdminCountriesRoute
   '/admin/editions': typeof AuthenticatedAdminEditionsRoute
   '/admin/responses': typeof AuthenticatedAdminResponsesRouteWithChildren
   '/admin/rounds': typeof AuthenticatedAdminRoundsRoute
@@ -98,6 +106,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/admin/countries': typeof AuthenticatedAdminCountriesRoute
   '/admin/editions': typeof AuthenticatedAdminEditionsRoute
   '/admin/rounds': typeof AuthenticatedAdminRoundsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -111,6 +120,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/admin/calendar': typeof AuthenticatedAdminCalendarRoute
+  '/_authenticated/admin/countries': typeof AuthenticatedAdminCountriesRoute
   '/_authenticated/admin/editions': typeof AuthenticatedAdminEditionsRoute
   '/_authenticated/admin/responses': typeof AuthenticatedAdminResponsesRouteWithChildren
   '/_authenticated/admin/rounds': typeof AuthenticatedAdminRoundsRoute
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/admin/calendar'
+    | '/admin/countries'
     | '/admin/editions'
     | '/admin/responses'
     | '/admin/rounds'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin/calendar'
+    | '/admin/countries'
     | '/admin/editions'
     | '/admin/rounds'
     | '/admin'
@@ -148,6 +160,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/admin'
     | '/_authenticated/admin/calendar'
+    | '/_authenticated/admin/countries'
     | '/_authenticated/admin/editions'
     | '/_authenticated/admin/responses'
     | '/_authenticated/admin/rounds'
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       path: '/calendar'
       fullPath: '/admin/calendar'
       preLoaderRoute: typeof AuthenticatedAdminCalendarRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/countries': {
+      id: '/_authenticated/admin/countries'
+      path: '/countries'
+      fullPath: '/admin/countries'
+      preLoaderRoute: typeof AuthenticatedAdminCountriesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/editions': {
@@ -263,6 +283,7 @@ const AuthenticatedAdminResponsesRouteWithChildren =
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminCalendarRoute: typeof AuthenticatedAdminCalendarRoute
+  AuthenticatedAdminCountriesRoute: typeof AuthenticatedAdminCountriesRoute
   AuthenticatedAdminEditionsRoute: typeof AuthenticatedAdminEditionsRoute
   AuthenticatedAdminResponsesRoute: typeof AuthenticatedAdminResponsesRouteWithChildren
   AuthenticatedAdminRoundsRoute: typeof AuthenticatedAdminRoundsRoute
@@ -271,6 +292,7 @@ interface AuthenticatedAdminRouteChildren {
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminCalendarRoute: AuthenticatedAdminCalendarRoute,
+  AuthenticatedAdminCountriesRoute: AuthenticatedAdminCountriesRoute,
   AuthenticatedAdminEditionsRoute: AuthenticatedAdminEditionsRoute,
   AuthenticatedAdminResponsesRoute:
     AuthenticatedAdminResponsesRouteWithChildren,
@@ -300,3 +322,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
