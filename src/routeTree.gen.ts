@@ -19,6 +19,7 @@ import { Route as AuthenticatedAdminCountriesRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminEditionsRouteImport } from './routes/_authenticated/admin.editions'
 import { Route as AuthenticatedAdminResponsesRouteImport } from './routes/_authenticated/admin.responses'
 import { Route as AuthenticatedAdminRoundsRouteImport } from './routes/_authenticated/admin.rounds'
+import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedAdminResponsesIndexRouteImport } from './routes/_authenticated/admin.responses.index'
 import { Route as AuthenticatedAdminResponsesIdRouteImport } from './routes/_authenticated/admin.responses.$id'
 
@@ -76,6 +77,12 @@ const AuthenticatedAdminRoundsRoute =
     path: '/rounds',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminSettingsRoute =
+  AuthenticatedAdminSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminResponsesIndexRoute =
   AuthenticatedAdminResponsesIndexRouteImport.update({
     id: '/',
@@ -98,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/admin/editions': typeof AuthenticatedAdminEditionsRoute
   '/admin/responses': typeof AuthenticatedAdminResponsesRouteWithChildren
   '/admin/rounds': typeof AuthenticatedAdminRoundsRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/responses/$id': typeof AuthenticatedAdminResponsesIdRoute
   '/admin/responses/': typeof AuthenticatedAdminResponsesIndexRoute
@@ -109,6 +117,7 @@ export interface FileRoutesByTo {
   '/admin/countries': typeof AuthenticatedAdminCountriesRoute
   '/admin/editions': typeof AuthenticatedAdminEditionsRoute
   '/admin/rounds': typeof AuthenticatedAdminRoundsRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/responses/$id': typeof AuthenticatedAdminResponsesIdRoute
   '/admin/responses': typeof AuthenticatedAdminResponsesIndexRoute
@@ -124,6 +133,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/editions': typeof AuthenticatedAdminEditionsRoute
   '/_authenticated/admin/responses': typeof AuthenticatedAdminResponsesRouteWithChildren
   '/_authenticated/admin/rounds': typeof AuthenticatedAdminRoundsRoute
+  '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/responses/$id': typeof AuthenticatedAdminResponsesIdRoute
   '/_authenticated/admin/responses/': typeof AuthenticatedAdminResponsesIndexRoute
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/admin/editions'
     | '/admin/responses'
     | '/admin/rounds'
+    | '/admin/settings'
     | '/admin/'
     | '/admin/responses/$id'
     | '/admin/responses/'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/admin/countries'
     | '/admin/editions'
     | '/admin/rounds'
+    | '/admin/settings'
     | '/admin'
     | '/admin/responses/$id'
     | '/admin/responses'
@@ -164,6 +176,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/editions'
     | '/_authenticated/admin/responses'
     | '/_authenticated/admin/rounds'
+    | '/_authenticated/admin/settings'
     | '/_authenticated/admin/'
     | '/_authenticated/admin/responses/$id'
     | '/_authenticated/admin/responses/'
@@ -247,6 +260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRoundsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/settings': {
+      id: '/_authenticated/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AuthenticatedAdminSettingsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/responses/': {
       id: '/_authenticated/admin/responses/'
       path: '/'
@@ -287,6 +307,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminEditionsRoute: typeof AuthenticatedAdminEditionsRoute
   AuthenticatedAdminResponsesRoute: typeof AuthenticatedAdminResponsesRouteWithChildren
   AuthenticatedAdminRoundsRoute: typeof AuthenticatedAdminRoundsRoute
+  AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
@@ -297,6 +318,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminResponsesRoute:
     AuthenticatedAdminResponsesRouteWithChildren,
   AuthenticatedAdminRoundsRoute: AuthenticatedAdminRoundsRoute,
+  AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
@@ -322,13 +344,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
