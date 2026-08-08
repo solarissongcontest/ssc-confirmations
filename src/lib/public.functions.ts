@@ -170,7 +170,8 @@ export const lookupSubmission = createServerFn({ method: "POST" })
 const draftSchema = z.object({
   round_id: z.string().uuid(),
   browser_session_id: z.string().trim().min(1).max(80),
-  payload: z.record(z.string(), z.unknown()),
+  /** JSON-encoded ConfirmationPayload plus the current step. */
+  payload_json: z.string().max(200_000),
 });
 
 export const saveDraft = createServerFn({ method: "POST" })
@@ -179,7 +180,13 @@ export const saveDraft = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { getClientIp } = await import("@/lib/request.server");
     const ip = getClientIp();
-    const p = data.payload as Record<string, unknown>;
+    let p: Record<string, unknown> = {};
+    try {
+      p = JSON.parse(data.payload_json) as Record<string, unknown>;
+    } catch {
+      return { ok: false as const, saved_at: "" };
+    }
+    const form = (p['payload'] ?? p) as Record<string, unknown>;
 
     const { data: existing } = await supabaseAdmin
       .from("submission_drafts")
@@ -191,9 +198,10 @@ export const saveDraft = createServerFn({ method: "POST" })
     const row = {
       round_id: data.round_id,
       browser_session_id: data.browser_session_id,
-      payload: data.payload as never,
-      instagram_username: typeof p['instagram_username'] === "string" ? (p['instagram_username'] as string) : null,
-      country: typeof p['country'] === "string" ? (p['country'] as string) : null,
+      payload: p as never,
+      instagram_username:
+        typeof form['instagram_username'] === "string" ? (form['instagram_username'] as string) : null,
+      country: typeof form['country'] === "string" ? (form['country'] as string) : null,
       latest_ip: ip,
       initial_ip: existing?.initial_ip ?? ip,
       updated_at: new Date().toISOString(),
@@ -224,10 +232,10 @@ export const loadDraft = createServerFn({ method: "POST" })
       .eq("round_id", data.round_id)
       .eq("browser_session_id", data.browser_session_id)
       .maybeSingle();
-    if (!row || row.submitted_submission_id) return { found: false as const };
+    if (!row || row.submitted_submission_id) return { found: false as const, payload_json: "" };
     return {
       found: true as const,
-      payload: row.payload as Record<string, unknown>,
+      payload_json: JSON.stringify(row.payload),
       updated_at: row.updated_at,
     };
   });
