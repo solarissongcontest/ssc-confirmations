@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      edit_tokens: {
+        Row: {
+          active: boolean
+          created_at: string
+          expires_at: string | null
+          id: string
+          last_used_at: string | null
+          submission_id: string
+          token_hash: string
+          token_type: string
+          use_count: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          last_used_at?: string | null
+          submission_id: string
+          token_hash: string
+          token_type?: string
+          use_count?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          last_used_at?: string | null
+          submission_id?: string
+          token_hash?: string
+          token_type?: string
+          use_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edit_tokens_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       editions: {
         Row: {
           created_at: string
@@ -158,6 +202,121 @@ export type Database = {
           },
         ]
       }
+      round_stats: {
+        Row: {
+          round_id: string
+          submitted_count: number
+          updated_at: string
+        }
+        Insert: {
+          round_id: string
+          submitted_count?: number
+          updated_at?: string
+        }
+        Update: {
+          round_id?: string
+          submitted_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "round_stats_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: true
+            referencedRelation: "submission_rounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      submission_drafts: {
+        Row: {
+          browser_session_id: string
+          country: string | null
+          created_at: string
+          id: string
+          initial_ip: string | null
+          instagram_username: string | null
+          latest_ip: string | null
+          payload: Json
+          round_id: string
+          submitted_submission_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          browser_session_id: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          initial_ip?: string | null
+          instagram_username?: string | null
+          latest_ip?: string | null
+          payload?: Json
+          round_id: string
+          submitted_submission_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          browser_session_id?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          initial_ip?: string | null
+          instagram_username?: string | null
+          latest_ip?: string | null
+          payload?: Json
+          round_id?: string
+          submitted_submission_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submission_drafts_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "submission_rounds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submission_drafts_submitted_submission_id_fkey"
+            columns: ["submitted_submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      submission_ip_history: {
+        Row: {
+          first_seen_at: string
+          id: string
+          ip_address: string
+          last_seen_at: string
+          submission_id: string
+        }
+        Insert: {
+          first_seen_at?: string
+          id?: string
+          ip_address: string
+          last_seen_at?: string
+          submission_id: string
+        }
+        Update: {
+          first_seen_at?: string
+          id?: string
+          ip_address?: string
+          last_seen_at?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submission_ip_history_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       submission_rounds: {
         Row: {
           closes_at: string | null
@@ -234,6 +393,7 @@ export type Database = {
       submissions: {
         Row: {
           admin_notes: string | null
+          browser_session_id: string | null
           country: string
           country_account: string | null
           edit_count: number
@@ -242,7 +402,10 @@ export type Database = {
           entry_unknown: boolean
           has_country_account: boolean
           id: string
+          initial_ip: string | null
           instagram_username: string
+          last_autosaved_at: string | null
+          latest_ip: string | null
           locked: boolean
           nf_approximate_text: string | null
           nf_date_type: string | null
@@ -263,6 +426,7 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          browser_session_id?: string | null
           country: string
           country_account?: string | null
           edit_count?: number
@@ -271,7 +435,10 @@ export type Database = {
           entry_unknown?: boolean
           has_country_account?: boolean
           id?: string
+          initial_ip?: string | null
           instagram_username: string
+          last_autosaved_at?: string | null
+          latest_ip?: string | null
           locked?: boolean
           nf_approximate_text?: string | null
           nf_date_type?: string | null
@@ -292,6 +459,7 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          browser_session_id?: string | null
           country?: string
           country_account?: string | null
           edit_count?: number
@@ -300,7 +468,10 @@ export type Database = {
           entry_unknown?: boolean
           has_country_account?: boolean
           id?: string
+          initial_ip?: string | null
           instagram_username?: string
+          last_autosaved_at?: string | null
+          latest_ip?: string | null
           locked?: boolean
           nf_approximate_text?: string | null
           nf_date_type?: string | null
@@ -369,6 +540,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      round_availability: { Args: { _round_id: string }; Returns: Json }
       round_is_open: {
         Args: {
           _count: number
