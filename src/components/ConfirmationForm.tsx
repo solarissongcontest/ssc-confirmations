@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { GripVertical, Plus, Trash2, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { GripVertical, Plus, Trash2, ArrowLeft, ArrowRight, Check, CloudUpload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,15 +9,33 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { submitConfirmation, lookupSubmission, type PublicRound } from "@/lib/public.functions";
 import {
+  findMySubmission,
+  getRoundAvailability,
+  loadDraft,
+  lookupSubmission,
+  saveDraft,
+  submitConfirmation,
+  type PublicRound,
+} from "@/lib/public.functions";
+import { prefillFromSubmission } from "@/lib/prefill";
+import {
+  clearLocalDraft,
+  getBrowserSessionId,
+  readLocalDraft,
+  writeLocalDraft,
+} from "@/lib/session";
+import {
+  availabilityMessage,
   emptyPayload,
   isValidUrl,
   offsetTimestamp,
   parseTimestamp,
+  type AvailabilityReason,
   type ConfirmationPayload,
   type DateType,
 } from "@/lib/ssc";
+
 
 const STEPS = ["Delegation", "Participation", "Selection", "Entry", "Release", "Review"] as const;
 
@@ -130,19 +148,53 @@ function DateChoice({
   );
 }
 
-export function ConfirmationForm({ round }: { round: PublicRound }) {
+export interface ConfirmationFormProps {
+  round: PublicRound;
+  /** Secure edit link token — bypasses duplicate checks and targets one submission. */
+  editToken?: string;
+  /** Pre-filled submission when arriving through an edit link. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prefill?: any;
+  /** Live availability reason from the parent page (realtime). */
+  availability?: AvailabilityReason;
+}
+
+export function ConfirmationForm({
+  round,
+  editToken,
+  prefill,
+  availability,
+}: ConfirmationFormProps) {
   const submit = useServerFn(submitConfirmation);
   const lookup = useServerFn(lookupSubmission);
+  const persistDraft = useServerFn(saveDraft);
+  const fetchDraft = useServerFn(loadDraft);
+  const findMine = useServerFn(findMySubmission);
+  const checkAvailability = useServerFn(getRoundAvailability);
 
   const [step, setStep] = useState(0);
-  const [data, setData] = useState<ConfirmationPayload>(() => emptyPayload(round.id));
+  const [data, setData] = useState<ConfirmationPayload>(() =>
+    prefill ? prefillFromSubmission(prefill, emptyPayload(round.id)) : emptyPayload(round.id),
+  );
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<null | "submitted" | "not_participating">(null);
   const [blocked, setBlocked] = useState<string | null>(null);
-  const [editingExisting, setEditingExisting] = useState(false);
+  const [editingExisting, setEditingExisting] = useState(Boolean(prefill));
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [restored, setRestored] = useState<string | null>(null);
+  const [alreadyResponded, setAlreadyResponded] = useState<{
+    country: string;
+    submitted_at: string;
+  } | null>(null);
+
+  const sessionId = useMemo(() => getBrowserSessionId(), []);
+  const hydrated = useRef(false);
+  const dirty = useRef(false);
 
   const set = <K extends keyof ConfirmationPayload>(key: K, value: ConfirmationPayload[K]) => {
+    dirty.current = true;
     setData((d) => ({ ...d, [key]: value }));
     setErrors((e) => {
       const next = { ...e };
@@ -151,6 +203,111 @@ export function ConfirmationForm({ round }: { round: PublicRound }) {
     });
   };
 
+  /* ------------------------- recovery on first mount ------------------------ */
+  useEffect(() => {
+    if (hydrated.current || editToken) {
+      hydrated.current = true;
+      return;
+    }
+    hydrated.current = true;
+    let cancelled = false;
+
+    (async () => {
+      // 1. instant local restore (survives refresh, crash, offline)
+      const local = readLocalDraft<ConfirmationPayload>(round.id);
+      if (local?.payload) {
+        setData({ ...local.payload, round_id: round.id });
+        setStep(Math.min(local.step ?? 0, STEPS.length - 1));
+        setRestored(local.savedAt);
+      }
+
+      if (!sessionId) return;
+
+      // 2. server-side draft (survives a different tab / cleared tab state)
+      try {
+        const remote = await fetchDraft({
+          data: { round_id: round.id, browser_session_id: sessionId },
+        });
+        if (!cancelled && remote.found && remote.payload_json) {
+          const parsed = JSON.parse(remote.payload_json) as {
+            payload?: ConfirmationPayload;
+            step?: number;
+          };
+          const remoteAt = new Date(remote.updated_at).getTime();
+          const localAt = local ? new Date(local.savedAt).getTime() : 0;
+          if (parsed.payload && remoteAt > localAt) {
+            setData({ ...parsed.payload, round_id: round.id });
+            setStep(Math.min(parsed.step ?? 0, STEPS.length - 1));
+            setRestored(remote.updated_at);
+          }
+        }
+      } catch {
+        /* offline — local draft already applied */
+      }
+
+      // 3. an existing submission from this browser
+      try {
+        const mine = await findMine({
+          data: { round_id: round.id, browser_session_id: sessionId },
+        });
+        if (!cancelled && mine.found && mine.submission) {
+          setAlreadyResponded({
+            country: mine.submission.country,
+            submitted_at: mine.submission.submitted_at,
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round.id]);
+
+  /* -------------------------------- autosave -------------------------------- */
+  const autosave = useCallback(
+    async (payload: ConfirmationPayload, currentStep: number) => {
+      writeLocalDraft(round.id, payload, currentStep);
+      if (!sessionId || editToken) return;
+      setSaving(true);
+      try {
+        const res = await persistDraft({
+          data: {
+            round_id: round.id,
+            browser_session_id: sessionId,
+            payload_json: JSON.stringify({ payload, step: currentStep }),
+          },
+        });
+        if (res.ok) setSavedAt(res.saved_at);
+      } catch {
+        /* keep the local copy; retry on the next change */
+      } finally {
+        setSaving(false);
+      }
+    },
+    [round.id, sessionId, editToken, persistDraft],
+  );
+
+  useEffect(() => {
+    if (!hydrated.current || !dirty.current || done) return;
+    const t = setTimeout(() => void autosave(data, step), 1200);
+    return () => clearTimeout(t);
+  }, [data, step, done, autosave]);
+
+  // flush before the tab closes
+  useEffect(() => {
+    const handler = () => {
+      if (dirty.current && !done) writeLocalDraft(round.id, data, step);
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [data, step, done, round.id]);
+
+  const liveClosed = availability && availability !== "OPEN" && !editToken;
+
   const visibleSteps = useMemo(() => {
     if (!data.participating) return ["Delegation", "Participation"];
     return STEPS as unknown as string[];
@@ -158,6 +315,7 @@ export function ConfirmationForm({ round }: { round: PublicRound }) {
 
   const previewEnd = offsetTimestamp(data.preview_start, 25);
   const clipEnd = offsetTimestamp(data.final_clip_start, 90);
+
 
   function validate(current: number): boolean {
     const e: Errors = {};
@@ -221,58 +379,20 @@ export function ConfirmationForm({ round }: { round: PublicRound }) {
   async function next() {
     if (!validate(step)) return;
 
-    if (step === 0) {
+    if (step === 0 && !editToken) {
       setBusy(true);
       try {
         const res = await lookup({ data: { round_id: round.id, country: data.country } });
         if (res.exists && !res.canEdit) {
           setBlocked(
-            "A confirmation for this country already exists in this round. Ask an organiser to reopen it if you need to make changes.",
+            "A confirmation for this country already exists in this round. Ask an organiser to reopen it, or use the personal edit link they can send you.",
           );
           setBusy(false);
           return;
         }
         if (res.exists && res.canEdit && res.submission) {
-          const s = res.submission;
-          const internal = s.internal_entries;
-          const nf = s.national_finals;
           setEditingExisting(true);
-          setData((d) => ({
-            ...d,
-            instagram_username: s.instagram_username ?? d.instagram_username,
-            country_account: s.country_account ?? "",
-            has_country_account: s.has_country_account ?? false,
-            participating: s.participating ?? true,
-            selection_method: (s.selection_method ?? "") as ConfirmationPayload["selection_method"],
-            entry_unknown: s.entry_unknown ?? false,
-            nf_entries_unknown: s.nf_entries_unknown ?? false,
-            artist: internal?.artist ?? "",
-            song_title: internal?.song_title ?? "",
-            song_url: internal?.song_url ?? "",
-            preview_start: internal?.preview_start ?? "",
-            final_clip_start: internal?.final_clip_start ?? "",
-            replacement_video_required: internal?.replacement_video_required ?? false,
-            replacement_video_url: internal?.replacement_video_url ?? "",
-            nf_name: nf?.nf_name ?? "",
-            expected_entry_count: nf?.expected_entry_count ? String(nf.expected_entry_count) : "",
-            nf_entries: (nf?.national_final_entries ?? [])
-              .slice()
-              .sort((a: { position: number }, b: { position: number }) => (a.position ?? 0) - (b.position ?? 0))
-              .map((entry: { artist: string | null; song_title: string | null; song_url: string | null }) => ({
-                artist: entry.artist ?? "",
-                song_title: entry.song_title ?? "",
-                song_url: entry.song_url ?? "",
-              })),
-            nf_date_type: (s.nf_date_type ?? "") as DateType | "",
-            nf_exact_date: s.nf_exact_date ?? "",
-            nf_approximate_text: s.nf_approximate_text ?? "",
-            nf_result_date_type: (s.nf_result_date_type ?? "") as DateType | "",
-            nf_result_exact_date: s.nf_result_exact_date ?? "",
-            nf_result_approximate_text: s.nf_result_approximate_text ?? "",
-            reveal_date_type: (s.reveal_date_type ?? "") as DateType | "",
-            reveal_exact_date: s.reveal_exact_date ?? "",
-            reveal_approximate_text: s.reveal_approximate_text ?? "",
-          }));
+          setData((d) => prefillFromSubmission(res.submission, d));
         }
       } finally {
         setBusy(false);
@@ -301,25 +421,46 @@ export function ConfirmationForm({ round }: { round: PublicRound }) {
   async function send(participating: boolean) {
     setBusy(true);
     try {
-      const payload: ConfirmationPayload = {
+      // Re-check right before writing so a round that closed mid-form is caught early.
+      if (!editToken && !editingExisting) {
+        try {
+          const avail = await checkAvailability({ data: { round_id: round.id } });
+          if (!avail.can_accept) {
+            setBlocked(availabilityMessage(avail.reason));
+            return;
+          }
+        } catch {
+          /* fall through — the database enforces the rule atomically anyway */
+        }
+      }
+
+      const payload = {
         ...data,
         participating,
         preview_end: previewEnd,
         final_clip_end: clipEnd,
+        ...(sessionId ? { browser_session_id: sessionId } : {}),
+        ...(editToken ? { edit_token: editToken } : {}),
       };
       const res = await submit({ data: payload });
       if (!res.ok) {
-        if (res.error === "full")
-          setBlocked("This confirmation round has reached its maximum number of submissions.");
-        else if (res.error === "closed") setBlocked("Confirmations are currently closed.");
+        if (res.reason) setBlocked(availabilityMessage(res.reason));
+        else if (res.error === "full")
+          setBlocked(availabilityMessage("RESPONSE_LIMIT_REACHED"));
+        else if (res.error === "closed") setBlocked(availabilityMessage("MANUALLY_CLOSED"));
         else if (res.error === "duplicate")
           setBlocked("A confirmation for this country already exists in this round.");
+        else if (res.error === "invalid_token")
+          setBlocked("This edit link is no longer valid. Please ask an organiser for a new one.");
         else setBlocked("Something went wrong while saving. Please try again.");
         return;
       }
+      dirty.current = false;
+      clearLocalDraft(round.id);
       setDone(participating ? "submitted" : "not_participating");
     } finally {
       setBusy(false);
+
     }
   }
 
@@ -366,6 +507,22 @@ export function ConfirmationForm({ round }: { round: PublicRound }) {
     );
   }
 
+  if (liveClosed) {
+    return (
+      <div className="surface animate-rise p-8 text-center">
+        <h2 className="text-xl font-semibold">This round is no longer accepting responses</h2>
+        <p className="mt-3 text-sm text-muted-foreground">
+          {availabilityMessage(availability!)}
+        </p>
+        {dirty.current ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Your answers are saved on this device in case the round reopens.
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   const stepTitle = STEPS[step];
   const progress = ((step + 1) / visibleSteps.length) * 100;
 
@@ -376,10 +533,49 @@ export function ConfirmationForm({ round }: { round: PublicRound }) {
           <span>
             Step {step + 1} — {stepTitle}
           </span>
-          <span>{visibleSteps.length} steps</span>
+          <span className="flex items-center gap-3">
+            {saving ? (
+              <span className="flex items-center gap-1 text-accent normal-case tracking-normal">
+                <CloudUpload className="size-3.5" /> Saving…
+              </span>
+            ) : savedAt ? (
+              <span className="normal-case tracking-normal">
+                Saved {new Date(savedAt).toLocaleTimeString()}
+              </span>
+            ) : null}
+            <span>{visibleSteps.length} steps</span>
+          </span>
         </div>
         <Progress value={progress} className="h-1.5" />
       </div>
+
+      {restored ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
+          <span>
+            We restored your unfinished response from {new Date(restored).toLocaleString()}.
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              clearLocalDraft(round.id);
+              setData(emptyPayload(round.id));
+              setStep(0);
+              setRestored(null);
+            }}
+          >
+            Start over
+          </Button>
+        </div>
+      ) : null}
+
+      {alreadyResponded && !editingExisting ? (
+        <p className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          This browser already submitted a response for {alreadyResponded.country} on{" "}
+          {new Date(alreadyResponded.submitted_at).toLocaleDateString()}. Submitting again will be
+          rejected unless an organiser reopens it or sends you a personal edit link.
+        </p>
+      ) : null}
 
       {editingExisting ? (
         <p className="rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
@@ -387,6 +583,7 @@ export function ConfirmationForm({ round }: { round: PublicRound }) {
           them and submit again.
         </p>
       ) : null}
+
 
       <div className="surface space-y-6 p-6 sm:p-8">
         {step === 0 ? (
