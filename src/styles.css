@@ -16,21 +16,7 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: "Gotham";
-  src: url("/Gotham Thin.otf") format("opentype");
-  font-weight: 100;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Gotham";
-  src: url("/Gotham Extra Light.otf") format("opentype");
-  font-weight: 200;
-  font-style: normal;
-  font-display: swap;
-}
+/* Gotham family */
 
 @font-face {
   font-family: "Gotham";
@@ -42,16 +28,8 @@
 
 @font-face {
   font-family: "Gotham";
-  src: url("/Gotham Regular.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Gotham";
   src: url("/Gotham Book.otf") format("opentype");
-  font-weight: 450;
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
@@ -68,22 +46,6 @@
   font-family: "Gotham";
   src: url("/Gotham Bold.otf") format("opentype");
   font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Gotham";
-  src: url("/Gotham Black.otf") format("opentype");
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Gotham";
-  src: url("/Gotham Ultra.otf") format("opentype");
-  font-weight: 900;
   font-style: normal;
   font-display: swap;
 }
@@ -268,6 +230,7 @@
 
     font-family: var(--font-sans);
     font-weight: 400;
+    letter-spacing: -0.01em;
 
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -287,11 +250,10 @@
   h5,
   h6 {
     font-family: var(--font-sans);
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-weight: 500;
+    letter-spacing: -0.015em;
   }
 
-  body,
   p,
   span,
   div,
@@ -303,17 +265,19 @@
     font-family: var(--font-sans);
   }
 
-  button {
-    font-weight: 500;
+  label {
+    font-weight: 400;
   }
 
-  label {
+  button {
     font-weight: 500;
   }
 
   input,
   textarea,
   select {
+    font-weight: 400;
+
     background:
       linear-gradient(
         180deg,
@@ -348,6 +312,9 @@
   textarea::placeholder {
     color:
       rgba(226, 235, 246, 0.58);
+
+    font-weight:
+      300;
   }
 
   input:focus,
@@ -364,6 +331,30 @@
       0 8px 22px
         rgba(0, 0, 0, 0.08);
   }
+}
+
+/* ============================================================
+ * TYPOGRAPHY TUNING
+ * ========================================================== */
+
+.text-muted-foreground {
+  font-weight: 300;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 500;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.uppercase {
+  letter-spacing: 0.08em;
 }
 
 /* ============================================================
@@ -514,6 +505,7 @@
 @keyframes rise-in {
   from {
     opacity: 0;
+
     transform:
       translateY(8px)
       scale(0.995);
@@ -521,6 +513,7 @@
 
   to {
     opacity: 1;
+
     transform:
       translateY(0)
       scale(1);
