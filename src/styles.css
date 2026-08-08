@@ -1,547 +1,577 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Lock } from "lucide-react";
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
 
-import {
-  getPublicRounds,
-  type PublicRound,
-} from "@/lib/public.functions";
+@custom-variant dark (&:is(.dark *));
 
-import { ConfirmationForm } from "@/components/ConfirmationForm";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
+/* ============================================================
+ * FONTS
+ * ========================================================== */
 
-import {
-  availabilityBadge,
-  computeAvailability,
-} from "@/lib/ssc";
-
-import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
-
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      {
-        title:
-          "Solaris Song Contest — Participation Confirmations",
-      },
-      {
-        name: "description",
-        content:
-          "Confirm your delegation's participation, choose your selection method and submit your song for the Solaris Song Contest.",
-      },
-      {
-        property: "og:title",
-        content:
-          "Solaris Song Contest — Participation Confirmations",
-      },
-      {
-        property: "og:description",
-        content:
-          "Confirm your delegation's participation, choose your selection method and submit your song.",
-      },
-    ],
-  }),
-
-  loader: () =>
-    getPublicRounds(),
-
-  component: Index,
-});
-
-function StateBadge({
-  state,
-}: {
-  state: string;
-}) {
-  const label =
-    state === "open"
-      ? "OPEN"
-      : state === "full"
-        ? "FULL"
-        : state === "scheduled"
-          ? "OPENS SOON"
-          : "CLOSED";
-
-  return (
-    <span
-      className={cn(
-        "rounded-full px-3 py-1 text-xs font-semibold tracking-widest",
-
-        state === "open"
-          ? "bg-success/15 text-success"
-          : state === "full"
-            ? "bg-warning/15 text-warning"
-            : "bg-muted text-muted-foreground",
-      )}
-    >
-      {label}
-    </span>
-  );
+@font-face {
+  font-family: "Classica Crastao";
+  src: url("/classicacrastao-m2pj5.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
-function Index() {
-  const initial: PublicRound[] =
-    Route.useLoaderData();
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
 
-  const [
-    rounds,
-    setRounds,
-  ] = useState<PublicRound[]>(
-    initial,
-  );
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Book.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
-  const [
-    selectedId,
-    setSelectedId,
-  ] = useState<
-    string | null
-  >(null);
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
 
-  /* ==========================================================
-   * LIVE ROUND UPDATES
-   * ======================================================== */
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
-  useEffect(() => {
-    const channel =
-      supabase
-        .channel(
-          "public-rounds",
-        )
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Bold Italic.ttf") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
 
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table:
-              "round_stats",
-          },
-          (payload) => {
-            const row =
-              payload.new as {
-                round_id?: string;
-                submitted_count?: number;
-              };
+/* ============================================================
+ * TAILWIND THEME
+ * ========================================================== */
 
-            if (
-              !row?.round_id
-            ) {
-              return;
-            }
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
 
-            setRounds(
-              (list) =>
-                list.map(
-                  (r) =>
-                    r.id ===
-                    row.round_id
-                      ? {
-                          ...r,
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 
-                          response_count:
-                            row.submitted_count ??
-                            r.response_count,
-                        }
-                      : r,
-                ),
-            );
-          },
-        )
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
 
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table:
-              "submission_rounds",
-          },
-          (payload) => {
-            const row =
-              payload.new as Partial<PublicRound> & {
-                id?: string;
-              };
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
 
-            if (!row?.id) {
-              return;
-            }
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
 
-            setRounds(
-              (list) =>
-                list.map(
-                  (r) =>
-                    r.id ===
-                    row.id
-                      ? {
-                          ...r,
-                          ...row,
-                        }
-                      : r,
-                ),
-            );
-          },
-        )
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
 
-        .subscribe();
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
 
-    return () => {
-      void supabase.removeChannel(
-        channel,
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-ring-offset-background: var(--background);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-display: "Classica Crastao", sans-serif;
+  --font-sans: "Gotham", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ============================================================
+ * COLORS
+ * ========================================================== */
+
+:root {
+  --radius: 1.15rem;
+
+  --background: oklch(0.145 0.028 258);
+  --foreground: oklch(0.975 0.006 250);
+
+  --card: oklch(1 0 0 / 0.025);
+  --card-foreground: oklch(0.975 0.006 250);
+
+  --popover: oklch(0.18 0.018 258 / 0.72);
+  --popover-foreground: oklch(0.975 0.006 250);
+
+  --primary: oklch(0.83 0.095 215);
+  --primary-foreground: oklch(0.17 0.025 245);
+
+  --secondary: oklch(1 0 0 / 0.06);
+  --secondary-foreground: oklch(0.975 0.006 250);
+
+  --muted: oklch(1 0 0 / 0.05);
+  --muted-foreground: oklch(0.8 0.014 250);
+
+  --accent: oklch(0.85 0.075 205);
+  --accent-foreground: oklch(0.17 0.025 245);
+
+  --destructive: oklch(0.63 0.2 22);
+  --destructive-foreground: oklch(0.98 0.005 250);
+
+  --success: oklch(0.77 0.11 168);
+  --success-foreground: oklch(0.17 0.03 170);
+
+  --warning: oklch(0.82 0.06 205);
+  --warning-foreground: oklch(0.17 0.03 245);
+
+  --border: oklch(1 0 0 / 0.14);
+  --input: oklch(1 0 0 / 0.05);
+  --ring: oklch(0.83 0.095 215);
+
+  --chart-1: oklch(0.83 0.095 215);
+  --chart-2: oklch(0.85 0.075 205);
+  --chart-3: oklch(0.77 0.11 168);
+  --chart-4: oklch(0.72 0.07 245);
+  --chart-5: oklch(0.63 0.09 285);
+
+  --sidebar: oklch(0.18 0.018 258 / 0.45);
+  --sidebar-foreground: oklch(0.96 0.01 250);
+
+  --sidebar-primary: oklch(0.83 0.095 215);
+  --sidebar-primary-foreground: oklch(0.17 0.025 245);
+
+  --sidebar-accent: oklch(1 0 0 / 0.05);
+  --sidebar-accent-foreground: oklch(0.97 0.008 250);
+
+  --sidebar-border: oklch(1 0 0 / 0.12);
+  --sidebar-ring: oklch(0.83 0.095 215);
+
+  --gradient-solar:
+    linear-gradient(
+      135deg,
+      oklch(0.99 0.005 240),
+      oklch(0.86 0.06 210)
+    );
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+/* ============================================================
+ * BASE PAGE
+ * ========================================================== */
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    min-height: 100%;
+    background-color: var(--color-background);
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+
+    background-color: var(--color-background);
+
+    background-image:
+      linear-gradient(
+        rgba(2, 7, 20, 0.04),
+        rgba(2, 7, 20, 0.04)
+      ),
+      url("/IMG_8909.jpeg");
+
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+
+    color: var(--color-foreground);
+
+    font-family: var(--font-sans);
+    font-weight: 400;
+    letter-spacing: -0.012em;
+
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.035em;
+    line-height: 1;
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    letter-spacing: -0.015em;
+  }
+
+  p,
+  span,
+  label,
+  button,
+  input,
+  textarea,
+  select {
+    font-family: var(--font-sans);
+  }
+
+  label {
+    font-weight: 500;
+  }
+
+  button {
+    font-weight: 500;
+  }
+
+  input,
+  textarea,
+  select {
+    font-weight: 400;
+
+    color: var(--color-foreground);
+
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.085),
+        rgba(255, 255, 255, 0.035)
       );
-    };
-  }, []);
 
-  /* ==========================================================
-   * RECHECK SCHEDULED OPEN / CLOSE TIMES
-   * ======================================================== */
+    border:
+      1px solid rgba(255, 255, 255, 0.16);
 
-  const [, setTick] =
-    useState(0);
+    backdrop-filter:
+      blur(3px)
+      saturate(170%);
 
-  useEffect(() => {
-    const timer =
-      setInterval(
-        () =>
-          setTick(
-            (n) =>
-              n + 1,
-          ),
-        15_000,
-      );
+    -webkit-backdrop-filter:
+      blur(3px)
+      saturate(170%);
 
-    return () =>
-      clearInterval(
-        timer,
-      );
-  }, []);
+    box-shadow:
+      inset 0 2px 8px rgba(255, 255, 255, 0.07),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+      0 5px 15px rgba(0, 0, 0, 0.06);
+  }
 
-  /* ==========================================================
-   * ROUND STATE
-   * ======================================================== */
+  input::placeholder,
+  textarea::placeholder {
+    color: rgba(227, 235, 246, 0.56);
+    font-weight: 300;
+  }
 
-  const reasonOf = (
-    round: PublicRound,
-  ) =>
-    computeAvailability({
-      status:
-        round.status,
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color:
+      rgba(130, 220, 255, 0.46);
 
-      count:
-        round.response_count,
+    outline: none;
 
-      limit:
-        round.response_limit,
+    box-shadow:
+      inset 0 2px 8px rgba(255, 255, 255, 0.08),
+      0 0 0 3px rgba(110, 210, 255, 0.1),
+      0 6px 18px rgba(0, 0, 0, 0.07);
+  }
+}
 
-      opens_at:
-        round.opens_at,
+/* ============================================================
+ * TYPOGRAPHY
+ * ========================================================== */
 
-      closes_at:
-        round.closes_at,
-    });
+.text-muted-foreground {
+  font-weight: 400;
+  opacity: 0.8;
+}
 
-  const stateOf = (
-    round: PublicRound,
-  ) =>
-    availabilityBadge(
-      reasonOf(round),
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 500;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+/* ============================================================
+ * LIQUID GLASS CARDS
+ * ========================================================== */
+
+.surface {
+  position: relative;
+
+  overflow: hidden;
+  isolation: isolate;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.09) 0%,
+      rgba(255, 255, 255, 0.045) 24%,
+      rgba(255, 255, 255, 0.025) 65%,
+      rgba(255, 255, 255, 0.04) 100%
     );
 
-  const setSelected = (
-    round:
-      | PublicRound
-      | null,
-  ) =>
-    setSelectedId(
-      round?.id ??
-        null,
+  border:
+    1px solid rgba(255, 255, 255, 0.32);
+
+  border-radius:
+    2rem;
+
+  backdrop-filter:
+    blur(3px)
+    saturate(185%)
+    brightness(1.04);
+
+  -webkit-backdrop-filter:
+    blur(3px)
+    saturate(185%)
+    brightness(1.04);
+
+  box-shadow:
+    0 12px 34px rgba(2, 7, 27, 0.15),
+    inset 0 5px 24px rgba(255, 255, 255, 0.11),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+
+  transform: translateZ(0);
+}
+
+/* glossy light entering from upper left */
+
+.surface::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  z-index: -1;
+  pointer-events: none;
+
+  border-radius: inherit;
+
+  background:
+    radial-gradient(
+      ellipse 75% 45% at 12% -5%,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.055) 38%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 55% 55% at 108% 100%,
+      rgba(90, 205, 255, 0.09) 0%,
+      transparent 67%
     );
 
-  const selected =
-    rounds.find(
-      (round) =>
-        round.id ===
-        selectedId,
-    ) ?? null;
+  mix-blend-mode: screen;
+}
 
-  const openRounds =
-    rounds.filter(
-      (round) =>
-        stateOf(
-          round,
-        ) === "open",
+/* refractive edge illusion */
+
+.surface::after {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  z-index: -1;
+  pointer-events: none;
+
+  border-radius: inherit;
+
+  background:
+    linear-gradient(
+      116deg,
+      transparent 0%,
+      transparent 31%,
+      rgba(255, 255, 255, 0.025) 40%,
+      rgba(255, 255, 255, 0.08) 49%,
+      rgba(255, 255, 255, 0.02) 58%,
+      transparent 68%
     );
 
-  const active =
-    selected ??
-    (openRounds.length ===
-    1
-      ? openRounds[0]!
-      : null);
+  box-shadow:
+    inset -10px -8px 0 -11px rgba(255, 255, 255, 0.95),
+    inset 0 -9px 0 -8px rgba(255, 255, 255, 0.82),
+    inset 9px 0 0 -8px rgba(255, 255, 255, 0.32);
 
-  /* ==========================================================
-   * PAGE
-   * ======================================================== */
+  opacity: 0.45;
 
-  return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:py-16">
-      {/* ------------------------------------------------------
-       * HERO
-       * ---------------------------------------------------- */}
+  filter:
+    blur(1px)
+    brightness(1.12);
 
-      <header className="mb-10 text-center">
-        <h1 className="text-solar text-4xl font-normal sm:text-6xl">
-          Solaris Song Contest
-        </h1>
+  mix-blend-mode: screen;
+}
 
-        <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Confirm your
-          participation and
-          submit your entry. It
-          only takes a couple of
-          minutes.
-        </p>
-      </header>
+/* ============================================================
+ * SMALL GLASS ELEMENTS
+ * ========================================================== */
 
-      {/* ------------------------------------------------------
-       * NO ROUNDS
-       * ---------------------------------------------------- */}
+.bg-secondary,
+.bg-muted {
+  backdrop-filter:
+    blur(3px)
+    saturate(160%);
 
-      {rounds.length ===
-      0 ? (
-        <div className="surface p-8 text-center">
-          <h2 className="text-lg">
-            No submission rounds
-            are available
-          </h2>
+  -webkit-backdrop-filter:
+    blur(3px)
+    saturate(160%);
+}
 
-          <p className="mt-2 text-sm text-muted-foreground">
-            Confirmations are
-            currently closed.
-            Please check back
-            later.
-          </p>
-        </div>
-      ) : null}
+/* ============================================================
+ * ACCENT TEXT
+ * ========================================================== */
 
-      {/* ------------------------------------------------------
-       * ROUND CHOOSER
-       * ---------------------------------------------------- */}
+@utility text-solar {
+  background-image:
+    var(--gradient-solar);
 
-      {!active &&
-      rounds.length >
-        0 ? (
-        <div className="space-y-3">
-          {rounds.map(
-            (round) => {
-              const state =
-                stateOf(
-                  round,
-                );
+  -webkit-background-clip:
+    text;
 
-              return (
-                <button
-                  key={
-                    round.id
-                  }
-                  type="button"
-                  disabled={
-                    state !==
-                    "open"
-                  }
-                  onClick={() =>
-                    setSelected(
-                      round,
-                    )
-                  }
-                  className={cn(
-                    "surface block w-full p-5 text-left transition-transform",
+  background-clip:
+    text;
 
-                    state ===
-                    "open"
-                      ? "hover:-translate-y-0.5"
-                      : "opacity-70",
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                        {
-                          round.edition_name
-                        }
-                      </p>
+  color: transparent;
+}
 
-                      <h2 className="mt-1 text-xl">
-                        {
-                          round.name
-                        }
-                      </h2>
-                    </div>
+@utility bg-solar {
+  background-image:
+    var(--gradient-solar);
+}
 
-                    <StateBadge
-                      state={
-                        state
-                      }
-                    />
-                  </div>
+/* ============================================================
+ * ANIMATIONS
+ * ========================================================== */
 
-                  {round.response_limit ? (
-                    <div className="mt-4">
-                      <Progress
-                        value={
-                          (round.response_count /
-                            round.response_limit) *
-                          100
-                        }
-                        className="h-1.5"
-                      />
+@keyframes rise-in {
+  from {
+    opacity: 0;
 
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {
-                          round.response_count
-                        }{" "}
-                        /{" "}
-                        {
-                          round.response_limit
-                        }{" "}
-                        spots filled
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      {
-                        round.response_count
-                      }{" "}
-                      responses
-                      received
-                    </p>
-                  )}
+    transform:
+      translateY(8px)
+      scale(0.995);
+  }
 
-                  {state ===
-                  "full" ? (
-                    <p className="mt-3 text-xs text-warning">
-                      This
-                      confirmation
-                      round has
-                      reached its
-                      maximum number
-                      of
-                      submissions.
-                    </p>
-                  ) : null}
+  to {
+    opacity: 1;
 
-                  {state ===
-                  "closed" ? (
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Confirmations
-                      are currently
-                      closed.
-                    </p>
-                  ) : null}
-                </button>
-              );
-            },
-          )}
-        </div>
-      ) : null}
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
 
-      {/* ------------------------------------------------------
-       * ACTIVE ROUND
-       * ---------------------------------------------------- */}
+@utility animate-rise {
+  animation:
+    rise-in
+    0.35s
+    cubic-bezier(
+      0.2,
+      0.8,
+      0.2,
+      1
+    )
+    both;
+}
 
-      {active ? (
-        <div className="space-y-6">
-          <div className="surface p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                  {
-                    active.edition_name
-                  }
-                </p>
+/* ============================================================
+ * FALLBACK
+ * ========================================================== */
 
-                <h2 className="mt-1 text-2xl">
-                  {
-                    active.name
-                  }
-                </h2>
-              </div>
+@supports not (
+  (backdrop-filter: blur(1px))
+  or
+  (-webkit-backdrop-filter: blur(1px))
+) {
+  .surface {
+    background:
+      rgba(18, 28, 56, 0.88);
+  }
 
-              <StateBadge
-                state={stateOf(
-                  active,
-                )}
-              />
-            </div>
+  input,
+  textarea,
+  select {
+    background:
+      rgba(24, 36, 68, 0.9);
+  }
+}
 
-            {active.response_limit ? (
-              <div className="mt-4">
-                <Progress
-                  value={
-                    (active.response_count /
-                      active.response_limit) *
-                    100
-                  }
-                  className="h-1.5"
-                />
+/* ============================================================
+ * MOBILE
+ * ========================================================== */
 
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {
-                    active.response_count
-                  }{" "}
-                  /{" "}
-                  {
-                    active.response_limit
-                  }{" "}
-                  spots filled
-                </p>
-              </div>
-            ) : null}
+@media (max-width: 768px) {
+  body {
+    background-attachment: scroll;
+  }
 
-            {rounds.length >
-            1 ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-3 -ml-2"
-                onClick={() =>
-                  setSelected(
-                    null,
-                  )
-                }
-              >
-                Choose a different
-                round
-              </Button>
-            ) : null}
-          </div>
+  .surface {
+    backdrop-filter:
+      blur(3px)
+      saturate(180%);
 
-          <ConfirmationForm
-            round={
-              active
-            }
-            availability={reasonOf(
-              active,
-            )}
-          />
-        </div>
-      ) : null}
-
-      {/* ------------------------------------------------------
-       * FOOTER
-       * ---------------------------------------------------- */}
-
-      <footer className="mt-12 text-center">
-        <Link
-          to="/admin"
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Lock className="size-3" />
-
-          Organiser access
-        </Link>
-      </footer>
-    </main>
-  );
+    -webkit-backdrop-filter:
+      blur(3px)
+      saturate(180%);
+  }
 }
