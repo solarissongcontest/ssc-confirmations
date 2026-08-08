@@ -1,79 +1,212 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Lock } from "lucide-react";
+import {
+  createFileRoute,
+  Link,
+} from "@tanstack/react-router";
+
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  Lock,
+} from "lucide-react";
 
 import {
   getPublicRounds,
   type PublicRound,
 } from "@/lib/public.functions";
 
-import { ConfirmationForm } from "@/components/ConfirmationForm";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
+import {
+  ConfirmationForm,
+} from "@/components/ConfirmationForm";
+
+import {
+  Progress,
+} from "@/components/ui/progress";
+
+import {
+  Button,
+} from "@/components/ui/button";
 
 import {
   availabilityBadge,
   computeAvailability,
 } from "@/lib/ssc";
 
-import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
+import {
+  supabase,
+} from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      {
-        title:
-          "Solaris Song Contest — Participation Confirmations",
-      },
-      {
-        name: "description",
-        content:
-          "Confirm your delegation's participation, choose your selection method and submit your song for the Solaris Song Contest.",
-      },
-      {
-        property: "og:title",
-        content:
-          "Solaris Song Contest — Participation Confirmations",
-      },
-      {
-        property: "og:description",
-        content:
-          "Confirm your delegation's participation, choose your selection method and submit your song.",
-      },
-    ],
-  }),
+import {
+  cn,
+} from "@/lib/utils";
 
-  loader: () =>
-    getPublicRounds(),
+export const Route =
+  createFileRoute("/")({
+    head: () => ({
+      meta: [
+        {
+          title:
+            "Solaris Song Contest — Participation Confirmations",
+        },
+        {
+          name:
+            "description",
 
-  component: Index,
-});
+          content:
+            "Confirm your delegation's participation, choose your selection method and submit your song for the Solaris Song Contest.",
+        },
+        {
+          property:
+            "og:title",
+
+          content:
+            "Solaris Song Contest — Participation Confirmations",
+        },
+        {
+          property:
+            "og:description",
+
+          content:
+            "Confirm your delegation's participation, choose your selection method and submit your song.",
+        },
+      ],
+    }),
+
+    loader: () =>
+      getPublicRounds(),
+
+    component: Index,
+  });
+
+/* ============================================================
+ * COUNTDOWN
+ * ========================================================== */
+
+function formatCountdown(
+  opensAt:
+    | string
+    | null,
+) {
+  if (!opensAt) {
+    return "OPENS SOON";
+  }
+
+  const target =
+    new Date(
+      opensAt,
+    ).getTime();
+
+  const now =
+    Date.now();
+
+  const difference =
+    target - now;
+
+  if (
+    !Number.isFinite(
+      target,
+    )
+  ) {
+    return "OPENS SOON";
+  }
+
+  if (
+    difference <= 0
+  ) {
+    return "OPENING…";
+  }
+
+  const totalSeconds =
+    Math.max(
+      0,
+      Math.floor(
+        difference /
+          1000,
+      ),
+    );
+
+  const days =
+    Math.floor(
+      totalSeconds /
+        86400,
+    );
+
+  const hours =
+    Math.floor(
+      (totalSeconds %
+        86400) /
+        3600,
+    );
+
+  const minutes =
+    Math.floor(
+      (totalSeconds %
+        3600) /
+        60,
+    );
+
+  const seconds =
+    totalSeconds %
+    60;
+
+  if (days > 0) {
+    return `OPENS IN ${days}D ${hours}H ${minutes}M`;
+  }
+
+  if (hours > 0) {
+    return `OPENS IN ${hours}H ${minutes}M`;
+  }
+
+  if (minutes > 0) {
+    return `OPENS IN ${minutes}M ${seconds}S`;
+  }
+
+  return `OPENS IN ${seconds}S`;
+}
+
+/* ============================================================
+ * STATE BADGE
+ * ========================================================== */
 
 function StateBadge({
   state,
+  opensAt,
 }: {
   state: string;
+
+  opensAt?:
+    | string
+    | null;
 }) {
   const label =
     state === "open"
       ? "OPEN"
       : state === "full"
         ? "FULL"
-        : state === "scheduled"
-          ? "OPENS SOON"
+        : state ===
+            "scheduled"
+          ? formatCountdown(
+              opensAt ??
+                null,
+            )
           : "CLOSED";
 
   return (
     <span
       className={cn(
-        "rounded-full px-3 py-1 text-xs font-semibold tracking-widest",
+        "shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold tracking-widest",
 
         state === "open"
           ? "bg-success/15 text-success"
-          : state === "full"
+          : state ===
+              "full"
             ? "bg-warning/15 text-warning"
-            : "bg-muted text-muted-foreground",
+            : state ===
+                "scheduled"
+              ? "bg-accent/15 text-accent"
+              : "bg-muted text-muted-foreground",
       )}
     >
       {label}
@@ -82,22 +215,25 @@ function StateBadge({
 }
 
 function Index() {
-  const initial: PublicRound[] =
+  const initial:
+    PublicRound[] =
     Route.useLoaderData();
 
   const [
     rounds,
     setRounds,
-  ] = useState<PublicRound[]>(
-    initial,
-  );
+  ] =
+    useState<
+      PublicRound[]
+    >(initial);
 
   const [
     selectedId,
     setSelectedId,
-  ] = useState<
-    string | null
-  >(null);
+  ] =
+    useState<
+      string | null
+    >(null);
 
   /* ==========================================================
    * LIVE ROUND UPDATES
@@ -114,14 +250,20 @@ function Index() {
           "postgres_changes",
           {
             event: "*",
-            schema: "public",
+
+            schema:
+              "public",
+
             table:
               "round_stats",
           },
-          (payload) => {
+          (
+            payload,
+          ) => {
             const row =
               payload.new as {
                 round_id?: string;
+
                 submitted_count?: number;
               };
 
@@ -132,19 +274,23 @@ function Index() {
             }
 
             setRounds(
-              (list) =>
+              (
+                list,
+              ) =>
                 list.map(
-                  (r) =>
-                    r.id ===
+                  (
+                    round,
+                  ) =>
+                    round.id ===
                     row.round_id
                       ? {
-                          ...r,
+                          ...round,
 
                           response_count:
                             row.submitted_count ??
-                            r.response_count,
+                            round.response_count,
                         }
-                      : r,
+                      : round,
                 ),
             );
           },
@@ -154,31 +300,42 @@ function Index() {
           "postgres_changes",
           {
             event: "*",
-            schema: "public",
+
+            schema:
+              "public",
+
             table:
               "submission_rounds",
           },
-          (payload) => {
+          (
+            payload,
+          ) => {
             const row =
               payload.new as Partial<PublicRound> & {
                 id?: string;
               };
 
-            if (!row?.id) {
+            if (
+              !row?.id
+            ) {
               return;
             }
 
             setRounds(
-              (list) =>
+              (
+                list,
+              ) =>
                 list.map(
-                  (r) =>
-                    r.id ===
+                  (
+                    round,
+                  ) =>
+                    round.id ===
                     row.id
                       ? {
-                          ...r,
+                          ...round,
                           ...row,
                         }
-                      : r,
+                      : round,
                 ),
             );
           },
@@ -194,27 +351,41 @@ function Index() {
   }, []);
 
   /* ==========================================================
-   * RECHECK SCHEDULED OPEN / CLOSE TIMES
+   * LIVE COUNTDOWN + SCHEDULED OPEN/CLOSE RECHECK
+   *
+   * Re-render every second.
+   * This updates:
+   * - countdown timer
+   * - scheduled round opening
+   * - scheduled round closing
    * ======================================================== */
 
-  const [, setTick] =
+  const [
+    ,
+    setTick,
+  ] =
     useState(0);
 
   useEffect(() => {
     const timer =
-      setInterval(
-        () =>
+      window.setInterval(
+        () => {
           setTick(
-            (n) =>
-              n + 1,
-          ),
-        15_000,
+            (
+              current,
+            ) =>
+              current +
+              1,
+          );
+        },
+        1000,
       );
 
-    return () =>
-      clearInterval(
+    return () => {
+      window.clearInterval(
         timer,
       );
+    };
   }, []);
 
   /* ==========================================================
@@ -222,7 +393,8 @@ function Index() {
    * ======================================================== */
 
   const reasonOf = (
-    round: PublicRound,
+    round:
+      PublicRound,
   ) =>
     computeAvailability({
       status:
@@ -242,35 +414,44 @@ function Index() {
     });
 
   const stateOf = (
-    round: PublicRound,
+    round:
+      PublicRound,
   ) =>
     availabilityBadge(
-      reasonOf(round),
+      reasonOf(
+        round,
+      ),
     );
 
   const setSelected = (
     round:
       | PublicRound
       | null,
-  ) =>
+  ) => {
     setSelectedId(
       round?.id ??
         null,
     );
+  };
 
   const selected =
     rounds.find(
-      (round) =>
+      (
+        round,
+      ) =>
         round.id ===
         selectedId,
     ) ?? null;
 
   const openRounds =
     rounds.filter(
-      (round) =>
+      (
+        round,
+      ) =>
         stateOf(
           round,
-        ) === "open",
+        ) ===
+        "open",
     );
 
   const active =
@@ -286,34 +467,36 @@ function Index() {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:py-16">
-      {/* ------------------------------------------------------
+      {/* ======================================================
        * HERO
-       * ---------------------------------------------------- */}
+       * ==================================================== */}
 
       <header className="mb-10 text-center">
         <h1 className="text-solar text-4xl font-normal sm:text-6xl">
-          Solaris Song Contest
+          Solaris Song
+          Contest
         </h1>
 
         <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
           Confirm your
           participation and
           submit your entry. It
-          only takes a couple of
-          minutes.
+          only takes a couple
+          of minutes.
         </p>
       </header>
 
-      {/* ------------------------------------------------------
+      {/* ======================================================
        * NO ROUNDS
-       * ---------------------------------------------------- */}
+       * ==================================================== */}
 
       {rounds.length ===
       0 ? (
         <div className="surface p-8 text-center">
           <h2 className="text-lg">
-            No submission rounds
-            are available
+            No submission
+            rounds are
+            available
           </h2>
 
           <p className="mt-2 text-sm text-muted-foreground">
@@ -325,16 +508,18 @@ function Index() {
         </div>
       ) : null}
 
-      {/* ------------------------------------------------------
+      {/* ======================================================
        * ROUND CHOOSER
-       * ---------------------------------------------------- */}
+       * ==================================================== */}
 
       {!active &&
       rounds.length >
         0 ? (
         <div className="space-y-3">
           {rounds.map(
-            (round) => {
+            (
+              round,
+            ) => {
               const state =
                 stateOf(
                   round,
@@ -365,7 +550,7 @@ function Index() {
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs uppercase tracking-widest text-muted-foreground">
                         {
                           round.edition_name
@@ -382,6 +567,9 @@ function Index() {
                     <StateBadge
                       state={
                         state
+                      }
+                      opensAt={
+                        round.opens_at
                       }
                     />
                   </div>
@@ -425,8 +613,8 @@ function Index() {
                       confirmation
                       round has
                       reached its
-                      maximum number
-                      of
+                      maximum
+                      number of
                       submissions.
                     </p>
                   ) : null}
@@ -439,6 +627,19 @@ function Index() {
                       closed.
                     </p>
                   ) : null}
+
+                  {state ===
+                    "scheduled" &&
+                  round.opens_at ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      This round
+                      will open
+                      automatically
+                      at its
+                      scheduled
+                      time.
+                    </p>
+                  ) : null}
                 </button>
               );
             },
@@ -446,15 +647,15 @@ function Index() {
         </div>
       ) : null}
 
-      {/* ------------------------------------------------------
+      {/* ======================================================
        * ACTIVE ROUND
-       * ---------------------------------------------------- */}
+       * ==================================================== */}
 
       {active ? (
         <div className="space-y-6">
           <div className="surface p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs uppercase tracking-widest text-muted-foreground">
                   {
                     active.edition_name
@@ -472,6 +673,9 @@ function Index() {
                 state={stateOf(
                   active,
                 )}
+                opensAt={
+                  active.opens_at
+                }
               />
             </div>
 
@@ -497,7 +701,15 @@ function Index() {
                   spots filled
                 </p>
               </div>
-            ) : null}
+            ) : (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {
+                  active.response_count
+                }{" "}
+                responses
+                received
+              </p>
+            )}
 
             {rounds.length >
             1 ? (
@@ -511,8 +723,8 @@ function Index() {
                   )
                 }
               >
-                Choose a different
-                round
+                Choose a
+                different round
               </Button>
             ) : null}
           </div>
@@ -528,9 +740,9 @@ function Index() {
         </div>
       ) : null}
 
-      {/* ------------------------------------------------------
+      {/* ======================================================
        * FOOTER
-       * ---------------------------------------------------- */}
+       * ==================================================== */}
 
       <footer className="mt-12 text-center">
         <Link
