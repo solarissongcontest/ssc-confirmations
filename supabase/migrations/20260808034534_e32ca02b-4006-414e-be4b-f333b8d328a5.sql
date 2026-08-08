@@ -164,6 +164,60 @@ grant execute on function public.round_availability(uuid) to anon, authenticated
 
 -- ============ atomic submit ============
 create or replace function public.submit_confirmation(payload jsonb)
+duplicate_result jsonb;
+current_submission_id uuid;
+current_submission_id :=
+  case
+    when is_edit then existing.id
+    else '00000000-0000-0000-0000-000000000000'::uuid
+  end;
+if coalesce((payload->>'participating')::boolean, true)
+   and payload->>'selection_method' = 'internal'
+   and not coalesce((payload->>'entry_unknown')::boolean, false)
+then
+
+  duplicate_result := public.find_entry_duplicate(
+    r.edition_id,
+    current_submission_id,
+    payload->>'artist',
+    payload->>'song_title',
+    payload->>'song_url'
+  );
+
+  if coalesce((duplicate_result->>'duplicate')::boolean, false) then
+
+    if duplicate_result->>'type' = 'artist' then
+      return jsonb_build_object(
+        'ok', false,
+        'error', 'duplicate_artist'
+      );
+    end if;
+
+    return jsonb_build_object(
+      'ok', false,
+      'error', 'duplicate_song'
+    );
+
+  end if;
+
+end if;
+duplicate_result := public.find_entry_duplicate(
+  r.edition_id,
+  sub.id,
+  item->>'artist',
+  item->>'song_title',
+  item->>'song_url'
+);
+
+if coalesce((duplicate_result->>'duplicate')::boolean, false) then
+
+  if duplicate_result->>'type' = 'artist' then
+    raise exception 'DUPLICATE_ARTIST';
+  else
+    raise exception 'DUPLICATE_SONG';
+  end if;
+
+end if;
 returns jsonb
 language plpgsql
 security definer
