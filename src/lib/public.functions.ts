@@ -567,7 +567,34 @@ export const submitConfirmation =
               payload,
             },
           );
-        } catch {
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message.toLowerCase()
+              : String(error).toLowerCase();
+
+          if (
+            message.includes(
+              "duplicate_song",
+            )
+          ) {
+            return {
+              ok: false as const,
+              error: "duplicate_song",
+            };
+          }
+
+          if (
+            message.includes(
+              "duplicate_artist",
+            )
+          ) {
+            return {
+              ok: false as const,
+              error: "duplicate_artist",
+            };
+          }
+
           return {
             ok: false as const,
             error: "server",
