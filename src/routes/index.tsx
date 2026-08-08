@@ -115,7 +115,7 @@ function formatCountdown(
   if (
     difference <= 0
   ) {
-    return "OPENING…";
+    return "OPEN";
   }
 
   const totalSeconds =
@@ -235,6 +235,12 @@ function Index() {
       string | null
     >(null);
 
+  const [
+    tick,
+    setTick,
+  ] =
+    useState(0);
+
   /* ==========================================================
    * LIVE ROUND UPDATES
    * ======================================================== */
@@ -353,18 +359,9 @@ function Index() {
   /* ==========================================================
    * LIVE COUNTDOWN + SCHEDULED OPEN/CLOSE RECHECK
    *
-   * Re-render every second.
-   * This updates:
-   * - countdown timer
-   * - scheduled round opening
-   * - scheduled round closing
+   * Re-renders every second.
+   * No refresh is needed when a scheduled round opens.
    * ======================================================== */
-
-  const [
-    ,
-    setTick,
-  ] =
-    useState(0);
 
   useEffect(() => {
     const timer =
@@ -395,8 +392,10 @@ function Index() {
   const reasonOf = (
     round:
       PublicRound,
-  ) =>
-    computeAvailability({
+  ) => {
+    void tick;
+
+    return computeAvailability({
       status:
         round.status,
 
@@ -412,6 +411,7 @@ function Index() {
       closes_at:
         round.closes_at,
     });
+  };
 
   const stateOf = (
     round:
@@ -525,6 +525,10 @@ function Index() {
                   round,
                 );
 
+              const isOpen =
+                state ===
+                "open";
+
               return (
                 <button
                   key={
@@ -532,8 +536,7 @@ function Index() {
                   }
                   type="button"
                   disabled={
-                    state !==
-                    "open"
+                    !isOpen
                   }
                   onClick={() =>
                     setSelected(
@@ -541,12 +544,11 @@ function Index() {
                     )
                   }
                   className={cn(
-                    "surface block w-full p-5 text-left transition-transform",
+                    "surface block w-full p-5 text-left transition-all",
 
-                    state ===
-                    "open"
-                      ? "hover:-translate-y-0.5"
-                      : "opacity-70",
+                    isOpen
+                      ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40"
+                      : "cursor-default opacity-70",
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -629,15 +631,26 @@ function Index() {
                   ) : null}
 
                   {state ===
-                    "scheduled" &&
-                  round.opens_at ? (
+                  "scheduled" ? (
                     <p className="mt-3 text-xs text-muted-foreground">
-                      This round
-                      will open
+                      No refresh
+                      needed. This
+                      round will
+                      become
+                      available
                       automatically
-                      at its
-                      scheduled
-                      time.
+                      when the
+                      countdown
+                      reaches zero.
+                    </p>
+                  ) : null}
+
+                  {state ===
+                  "open" ? (
+                    <p className="mt-3 text-xs font-medium text-accent">
+                      The round is
+                      now open. Tap
+                      to continue.
                     </p>
                   ) : null}
                 </button>
