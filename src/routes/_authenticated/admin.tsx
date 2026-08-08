@@ -5,11 +5,17 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
+import {
+  useQuery,
+} from "@tanstack/react-query";
+
+import {
+  useServerFn,
+} from "@tanstack/react-start";
 
 import {
   CalendarClock,
+  ExternalLink,
   Flag,
   Globe2,
   LayoutDashboard,
@@ -19,83 +25,112 @@ import {
   Users,
 } from "lucide-react";
 
-import { checkAdmin } from "@/lib/admin.functions";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import {
+  checkAdmin,
+} from "@/lib/admin.functions";
 
-export const Route = createFileRoute(
-  "/_authenticated/admin",
-)({
-  component: AdminLayout,
-});
+import {
+  supabase,
+} from "@/integrations/supabase/client";
+
+import {
+  Button,
+} from "@/components/ui/button";
+
+export const Route =
+  createFileRoute(
+    "/_authenticated/admin",
+  )({
+    component:
+      AdminLayout,
+  });
 
 const NAV = [
   {
     to: "/admin",
-    label: "Statistics",
-    icon: LayoutDashboard,
+    label:
+      "Statistics",
+    icon:
+      LayoutDashboard,
     exact: true,
   },
   {
     to: "/admin/editions",
-    label: "Editions",
-    icon: Flag,
+    label:
+      "Editions",
+    icon:
+      Flag,
     exact: false,
   },
   {
     to: "/admin/rounds",
-    label: "Rounds",
-    icon: ListChecks,
+    label:
+      "Rounds",
+    icon:
+      ListChecks,
     exact: false,
   },
   {
     to: "/admin/responses",
-    label: "Responses",
-    icon: Users,
+    label:
+      "Responses",
+    icon:
+      Users,
     exact: false,
   },
   {
     to: "/admin/countries",
-    label: "Countries",
-    icon: Globe2,
+    label:
+      "Countries",
+    icon:
+      Globe2,
     exact: false,
   },
   {
     to: "/admin/calendar",
-    label: "Calendar",
-    icon: CalendarClock,
+    label:
+      "Calendar",
+    icon:
+      CalendarClock,
     exact: false,
   },
   {
     to: "/admin/settings",
-    label: "Settings",
-    icon: Settings,
+    label:
+      "Settings",
+    icon:
+      Settings,
     exact: false,
   },
 ] as const;
 
 function AdminLayout() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const check = useServerFn(
-    checkAdmin,
-  );
+  const check =
+    useServerFn(
+      checkAdmin,
+    );
 
   const {
     data,
     isLoading,
-  } = useQuery({
-    queryKey: [
-      "is-admin",
-    ],
-    queryFn: () =>
-      check(),
-  });
+  } =
+    useQuery({
+      queryKey: [
+        "is-admin",
+      ],
+
+      queryFn: () =>
+        check(),
+    });
 
   if (isLoading) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
-        Loading dashboard…
+        Loading
+        dashboard…
       </div>
     );
   }
@@ -105,11 +140,17 @@ function AdminLayout() {
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="surface w-full max-w-sm p-7 text-center">
           <h1 className="text-lg">
-            No organiser access
+            No organiser
+            access
           </h1>
 
           <p className="mt-2 text-sm text-muted-foreground">
-            This account is not an administrator for the Solaris Song Contest system.
+            This account is
+            not an
+            administrator
+            for the Solaris
+            Song Contest
+            system.
           </p>
 
           <Button
@@ -147,11 +188,16 @@ function AdminLayout() {
           </h2>
         </div>
 
-        {/* Mobile horizontal nav */}
+        {/* ====================================================
+         * MOBILE HORIZONTAL NAV
+         * ================================================== */}
+
         <div className="relative md:hidden">
-          <nav className="flex gap-2 overflow-x-auto px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <nav className="flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NAV.map(
-              (item) => (
+              (
+                item,
+              ) => (
                 <Link
                   key={
                     item.to
@@ -186,10 +232,34 @@ function AdminLayout() {
           </nav>
         </div>
 
-        {/* Desktop vertical nav */}
+        {/* ====================================================
+         * MOBILE PUBLIC FORM BUTTON
+         * ================================================== */}
+
+        <div className="px-4 pb-4 md:hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            asChild
+          >
+            <Link to="/">
+              <ExternalLink className="size-4" />
+
+              Public form
+            </Link>
+          </Button>
+        </div>
+
+        {/* ====================================================
+         * DESKTOP VERTICAL NAV
+         * ================================================== */}
+
         <nav className="hidden flex-col gap-1 px-3 md:flex">
           {NAV.map(
-            (item) => (
+            (
+              item,
+            ) => (
               <Link
                 key={
                   item.to
@@ -220,6 +290,29 @@ function AdminLayout() {
             ),
           )}
         </nav>
+
+        {/* ====================================================
+         * DESKTOP PUBLIC FORM BUTTON
+         * ================================================== */}
+
+        <div className="hidden px-3 pt-4 md:block">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            asChild
+          >
+            <Link to="/">
+              <ExternalLink className="size-4" />
+
+              Public form
+            </Link>
+          </Button>
+        </div>
+
+        {/* ====================================================
+         * DESKTOP SIGN OUT
+         * ================================================== */}
 
         <div className="hidden p-3 md:block">
           <Button
