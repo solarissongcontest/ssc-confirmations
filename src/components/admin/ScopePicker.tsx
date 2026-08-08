@@ -1,4 +1,8 @@
-import type { AdminEdition, useScope } from "@/lib/adminHooks";
+import type {
+  AdminEdition,
+  useScope,
+} from "@/lib/adminHooks";
+
 import { cn } from "@/lib/utils";
 
 export function ScopePicker({
@@ -6,58 +10,108 @@ export function ScopePicker({
   editions,
   showRounds = true,
 }: {
-  scope: ReturnType<typeof useScope>;
-  editions: AdminEdition[] | undefined;
+  scope: ReturnType<
+    typeof useScope
+  >;
+
+  editions:
+    | AdminEdition[]
+    | undefined;
+
   showRounds?: boolean;
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {(editions ?? []).map((e) => (
-          <button
-            key={e.id}
-            type="button"
-            onClick={() => scope.setEditionId(e.id)}
-            className={cn(
-              "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-              scope.editionId === e.id
-                ? "border-primary bg-primary/15 text-foreground"
-                : "border-border bg-card text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {e.name}
-          </button>
-        ))}
+      {/* ======================================================
+       * EDITIONS
+       * ==================================================== */}
+
+      <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+        <div className="flex w-max min-w-full gap-2">
+          {(editions ?? []).map(
+            (edition) => (
+              <button
+                key={
+                  edition.id
+                }
+                type="button"
+                onClick={() =>
+                  scope.setEditionId(
+                    edition.id,
+                  )
+                }
+                className={cn(
+                  "shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-colors",
+
+                  scope.editionId ===
+                    edition.id
+                    ? "border-primary bg-primary/15 text-foreground"
+                    : "border-white/12 bg-white/5 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {
+                  edition.name
+                }
+              </button>
+            ),
+          )}
+        </div>
       </div>
+
+      {/* ======================================================
+       * ROUNDS
+       * ==================================================== */}
+
       {showRounds ? (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => scope.setRoundId("")}
-            className={cn(
-              "rounded-full border px-3 py-1.5 text-xs transition-colors",
-              scope.roundId === ""
-                ? "border-accent bg-accent/15 text-foreground"
-                : "border-border bg-card text-muted-foreground hover:text-foreground",
-            )}
-          >
-            All rounds
-          </button>
-          {scope.rounds.map((r) => (
+        <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+          <div className="flex w-max min-w-full gap-2">
             <button
-              key={r.id}
               type="button"
-              onClick={() => scope.setRoundId(r.id)}
+              onClick={() =>
+                scope.setRoundId(
+                  "",
+                )
+              }
               className={cn(
-                "rounded-full border px-3 py-1.5 text-xs transition-colors",
-                scope.roundId === r.id
+                "shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-colors",
+
+                scope.roundId ===
+                  ""
                   ? "border-accent bg-accent/15 text-foreground"
-                  : "border-border bg-card text-muted-foreground hover:text-foreground",
+                  : "border-white/12 bg-white/5 text-muted-foreground hover:text-foreground",
               )}
             >
-              {r.name}
+              All rounds
             </button>
-          ))}
+
+            {scope.rounds.map(
+              (round) => (
+                <button
+                  key={
+                    round.id
+                  }
+                  type="button"
+                  onClick={() =>
+                    scope.setRoundId(
+                      round.id,
+                    )
+                  }
+                  className={cn(
+                    "shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-colors",
+
+                    scope.roundId ===
+                      round.id
+                      ? "border-accent bg-accent/15 text-foreground"
+                      : "border-white/12 bg-white/5 text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {
+                    round.name
+                  }
+                </button>
+              ),
+            )}
+          </div>
         </div>
       ) : null}
     </div>
