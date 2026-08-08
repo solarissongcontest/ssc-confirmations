@@ -49,11 +49,16 @@ function ResponseDetail() {
   const updateFlags = useServerFn(updateSubmissionFlags);
   const setWinner = useServerFn(setWinningEntry);
   const remove = useServerFn(deleteSubmission);
+  const getTechnical = useServerFn(getSubmissionTechnical);
+const generateEditLink = useServerFn(createEditLink);
+const revokeLink = useServerFn(revokeEditLink);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+const [linkType, setLinkType] = useState<"reusable" | "one_time">("reusable");
 
-  const { data } = useQuery({
-    queryKey: ["submission", id],
-    queryFn: () => get({ data: { id } }),
-  });
+  const { data: technical } = useQuery({
+  queryKey: ["submission-technical", id],
+  queryFn: () => getTechnical({ data: { id } }),
+});
 
   const submission = data?.submission as AdminSubmission | null | undefined;
   const [notes, setNotes] = useState("");
@@ -286,6 +291,167 @@ function ResponseDetail() {
             </Button>
           </div>
         </section>
+
+        <section className="surface space-y-4 p-5">
+  <div>
+    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+      Edit access
+    </h2>
+    <p className="mt-1 text-xs text-muted-foreground">
+      Generate a private link that lets this participant edit their existing
+      response.
+    </p>
+  </div>
+
+  <div className="flex gap-2">
+    <Button
+      size="sm"
+      variant={linkType === "reusable" ? "default" : "outline"}
+      onClick={() => setLinkType("reusable")}
+    >
+      Reusable
+    </Button>
+
+    <Button
+      size="sm"
+      variant={linkType === "one_time" ? "default" : "outline"}
+      onClick={() => setLinkType("one_time")}
+    >
+      One-time
+    </Button>
+  </div>
+
+  <Button
+    onClick={async () => {
+      try {
+        const result = await generateEditLink({
+          data: {
+            submission_id: id,
+            token_type: linkType,
+            expires_in_hours: null,
+          },
+        });
+
+        const url = `${window.location.origin}/edit/${result.token}`;
+        setGeneratedLink(url);
+
+        await navigator.clipboard.writeText(url);
+
+        toast.success("Edit link generated and copied");
+        qc.invalidateQueries({
+          queryKey: ["submission-technical", id],
+        });
+      } catch {
+        toast.error("Could not generate edit link");
+      }
+    }}
+  >
+    <Link2 className="mr-2 size-4" />
+    Generate edit link
+  </Button>
+
+  {generatedLink ? (
+    <div className="space-y-2 rounded-lg border border-border p-3">
+      <p className="break-all text-xs text-muted-foreground">
+        {generatedLink}
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={async () => {
+            await navigator.clipboard.writeText(generatedLink);
+            toast.success("Edit link copied");
+          }}
+        >
+          <Copy className="mr-2 size-3.5" />
+          Copy
+        </Button>
+
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            window.open(generatedLink, "_blank", "noopener,noreferrer");
+          }}
+        >
+          <ExternalLink className="mr-2 size-3.5" />
+          Open
+        </Button>
+      </div>
+    </div>
+  ) : null}
+
+  <div className="space-y-2">
+    {(technical?.tokens ?? []).map((token) => (
+      <div
+        key={token.id}
+        className="rounded-lg border border-border bg-secondary/20 p-3"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">
+              {token.token_type === "one_time"
+                ? "One-time link"
+                : "Reusable link"}
+            </p>
+
+            <p className="text-xs text-muted-foreground">
+              {token.active ? "Active" : "Revoked"} · Used {token.use_count}{" "}
+              time{token.use_count === 1 ? "" : "s"}
+            </p>
+          </div>
+
+          {token.active ? (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={async () => {
+                await revokeLink({
+                  data: { id: token.id },
+                });
+
+                toast.success("Edit link revoked");
+
+                qc.invalidateQueries({
+                  queryKey: ["submission-technical", id],
+                });
+              }}
+            >
+              <Trash2 className="mr-2 size-3.5" />
+              Revoke
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="mt-2 text-xs text-muted-foreground">
+          <p>
+            Created: {new Date(token.created_at).toLocaleString()}
+          </p>
+
+          {token.last_used_at ? (
+            <p>
+              Last used: {new Date(token.last_used_at).toLocaleString()}
+            </p>
+          ) : null}
+
+          {token.expires_at ? (
+            <p>
+              Expires: {new Date(token.expires_at).toLocaleString()}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    ))}
+
+    {(technical?.tokens ?? []).length === 0 ? (
+      <p className="text-xs text-muted-foreground">
+        No edit links have been generated.
+      </p>
+    ) : null}
+  </div>
+</section>
 
         <section className="surface p-5">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
