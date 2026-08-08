@@ -102,28 +102,8 @@ function Field({
     </div>
   );
 }
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={htmlFor} className="text-sm font-medium">
-        {label}
-      </Label>
 
-      {hint ? (
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {hint}
-        </p>
-      ) : null}
-
-      {children}
-
-      {error ? (
-        <p className="text-xs font-medium text-destructive">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
+function Choice({
 
 function Choice({
   options,
