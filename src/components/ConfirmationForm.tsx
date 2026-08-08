@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { GripVertical, Plus, Trash2, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { GripVertical, Plus, Trash2, ArrowLeft, ArrowRight, Check, CloudUpload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,15 +9,33 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { submitConfirmation, lookupSubmission, type PublicRound } from "@/lib/public.functions";
 import {
+  findMySubmission,
+  getRoundAvailability,
+  loadDraft,
+  lookupSubmission,
+  saveDraft,
+  submitConfirmation,
+  type PublicRound,
+} from "@/lib/public.functions";
+import { prefillFromSubmission } from "@/lib/prefill";
+import {
+  clearLocalDraft,
+  getBrowserSessionId,
+  readLocalDraft,
+  writeLocalDraft,
+} from "@/lib/session";
+import {
+  availabilityMessage,
   emptyPayload,
   isValidUrl,
   offsetTimestamp,
   parseTimestamp,
+  type AvailabilityReason,
   type ConfirmationPayload,
   type DateType,
 } from "@/lib/ssc";
+
 
 const STEPS = ["Delegation", "Participation", "Selection", "Entry", "Release", "Review"] as const;
 
