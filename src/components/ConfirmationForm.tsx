@@ -104,8 +104,6 @@ function Field({
 }
 
 function Choice({
-
-function Choice({
   options,
   value,
   onChange,
