@@ -57,7 +57,7 @@
 }
 
 /* ============================================================
- * TAILWIND THEME
+ * THEME
  * ========================================================== */
 
 @theme inline {
@@ -101,7 +101,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-
   --color-ring-offset-background: var(--background);
 
   --color-chart-1: var(--chart-1);
@@ -112,13 +111,10 @@
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
@@ -198,7 +194,7 @@
 }
 
 /* ============================================================
- * BASE PAGE
+ * BASE
  * ========================================================== */
 
 @layer base {
@@ -225,7 +221,7 @@
       url("/IMG_8909.jpeg");
 
     background-size: cover;
-    background-position: center;
+    background-position: center center;
     background-repeat: no-repeat;
     background-attachment: fixed;
 
@@ -245,10 +241,8 @@
   h3 {
     font-family: var(--font-display);
     font-weight: 400;
-
     text-transform: uppercase;
-
-    letter-spacing: 0.035em;
+    letter-spacing: 0.03em;
     line-height: 1;
   }
 
@@ -258,6 +252,7 @@
     font-family: var(--font-sans);
     font-weight: 500;
     letter-spacing: -0.015em;
+    line-height: 1.2;
   }
 
   p,
@@ -272,16 +267,20 @@
 
   label {
     font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
   }
 
   button {
     font-weight: 500;
+    line-height: 1.2;
   }
 
   input,
   textarea,
   select {
     font-weight: 400;
+    line-height: 1.25;
 
     color: var(--color-foreground);
 
@@ -313,6 +312,7 @@
   textarea::placeholder {
     color: rgba(227, 235, 246, 0.56);
     font-weight: 300;
+    letter-spacing: -0.015em;
   }
 
   input:focus,
@@ -331,12 +331,21 @@
 }
 
 /* ============================================================
- * TYPOGRAPHY
+ * TYPOGRAPHY REFINEMENT
  * ========================================================== */
+
+.text-sm {
+  line-height: 1.35;
+}
+
+.text-xs {
+  line-height: 1.4;
+}
 
 .text-muted-foreground {
   font-weight: 400;
-  opacity: 0.8;
+  line-height: 1.4;
+  opacity: 0.78;
 }
 
 .font-medium {
@@ -351,13 +360,30 @@
   font-weight: 700;
 }
 
+/* Keep long form questions compact and readable */
+.form-question {
+  max-width: 28rem;
+  font-weight: 500;
+  line-height: 1.22;
+  letter-spacing: -0.025em;
+}
+
+/* slightly tighter labels inside form cards */
+.surface label {
+  line-height: 1.18;
+}
+
+/* normal helper copy under labels */
+.surface p.text-muted-foreground {
+  line-height: 1.38;
+}
+
 /* ============================================================
  * LIQUID GLASS CARDS
  * ========================================================== */
 
 .surface {
   position: relative;
-
   overflow: hidden;
   isolation: isolate;
 
@@ -395,8 +421,6 @@
   transform: translateZ(0);
 }
 
-/* glossy light entering from upper left */
-
 .surface::before {
   content: "";
 
@@ -423,8 +447,6 @@
 
   mix-blend-mode: screen;
 }
-
-/* refractive edge illusion */
 
 .surface::after {
   content: "";
@@ -478,7 +500,7 @@
 }
 
 /* ============================================================
- * ACCENT TEXT
+ * ACCENTS
  * ========================================================== */
 
 @utility text-solar {
@@ -500,7 +522,7 @@
 }
 
 /* ============================================================
- * ANIMATIONS
+ * ANIMATION
  * ========================================================== */
 
 @keyframes rise-in {
@@ -573,5 +595,10 @@
     -webkit-backdrop-filter:
       blur(3px)
       saturate(180%);
+  }
+
+  .form-question {
+    max-width: 22rem;
+    line-height: 1.2;
   }
 }
