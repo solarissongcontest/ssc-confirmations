@@ -43,6 +43,11 @@ export const listEditions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const db = await assertAdmin(context.userId);
+    await db
+  .from("edit_tokens")
+  .update({ active: false })
+  .eq("submission_id", data.submission_id)
+  .eq("active", true);
     const { data } = await db
       .from("editions")
       .select("*, submission_rounds(*)")
