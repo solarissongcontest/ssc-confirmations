@@ -65,13 +65,43 @@ function Field({
   error,
   children,
   htmlFor,
+  labelClassName,
 }: {
   label: string;
   hint?: string;
   error?: string | undefined;
   children: React.ReactNode;
   htmlFor?: string;
+  labelClassName?: string;
 }) {
+  return (
+    <div className="space-y-2">
+      <Label
+        htmlFor={htmlFor}
+        className={cn(
+          "text-sm font-medium",
+          labelClassName,
+        )}
+      >
+        {label}
+      </Label>
+
+      {hint ? (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
+
+      {children}
+
+      {error ? (
+        <p className="text-xs font-medium text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
   return (
     <div className="space-y-2">
       <Label htmlFor={htmlFor} className="text-sm font-medium">
