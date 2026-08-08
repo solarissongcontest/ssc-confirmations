@@ -160,6 +160,80 @@ export function statusTone(status: EntryStatus): "muted" | "warning" | "accent" 
   }
 }
 
+/* ------------------------- availability (single source) ------------------------- */
+
+export const AVAILABILITY_REASONS = [
+  "OPEN",
+  "MANUALLY_CLOSED",
+  "NOT_OPEN_YET",
+  "DEADLINE_PASSED",
+  "RESPONSE_LIMIT_REACHED",
+  "ROUND_DISABLED",
+] as const;
+
+export type AvailabilityReason = (typeof AVAILABILITY_REASONS)[number];
+
+export interface RoundAvailability {
+  can_accept: boolean;
+  reason: AvailabilityReason;
+  count: number;
+  limit: number | null;
+  remaining: number | null;
+  status: string | null;
+  opens_at?: string | null;
+  closes_at?: string | null;
+  server_time?: string;
+}
+
+/** Participant-facing copy for every closed reason. Single source of truth. */
+export function availabilityMessage(reason: AvailabilityReason): string {
+  switch (reason) {
+    case "OPEN":
+      return "This round is accepting responses.";
+    case "MANUALLY_CLOSED":
+      return "Confirmations are currently closed.";
+    case "NOT_OPEN_YET":
+      return "This round has not opened yet. Please check back later.";
+    case "DEADLINE_PASSED":
+      return "The deadline for this round has passed.";
+    case "RESPONSE_LIMIT_REACHED":
+      return "This confirmation round has reached its maximum number of submissions.";
+    case "ROUND_DISABLED":
+    default:
+      return "This round is not available.";
+  }
+}
+
+export function availabilityBadge(reason: AvailabilityReason): "open" | "closed" | "full" | "scheduled" {
+  if (reason === "OPEN") return "open";
+  if (reason === "RESPONSE_LIMIT_REACHED") return "full";
+  if (reason === "NOT_OPEN_YET") return "scheduled";
+  return "closed";
+}
+
+/** Client-side mirror of the database `round_availability` rule. */
+export function computeAvailability(input: {
+  status: string;
+  count: number;
+  limit: number | null;
+  opens_at: string | null;
+  closes_at: string | null;
+  edition_active?: boolean;
+}): AvailabilityReason {
+  const now = Date.now();
+  if (input.edition_active === false) return "ROUND_DISABLED";
+  if (input.status === "draft") return "ROUND_DISABLED";
+  if (input.status === "auto_closed") {
+    if (input.limit !== null && input.count >= input.limit) return "RESPONSE_LIMIT_REACHED";
+    return "MANUALLY_CLOSED";
+  }
+  if (input.status === "closed") return "MANUALLY_CLOSED";
+  if (input.opens_at && new Date(input.opens_at).getTime() > now) return "NOT_OPEN_YET";
+  if (input.closes_at && new Date(input.closes_at).getTime() <= now) return "DEADLINE_PASSED";
+  if (input.limit !== null && input.count >= input.limit) return "RESPONSE_LIMIT_REACHED";
+  return "OPEN";
+}
+
 export function roundStateLabel(
   status: string,
   count: number,
@@ -167,9 +241,8 @@ export function roundStateLabel(
   opensAt: string | null,
   closesAt: string | null,
 ): "open" | "closed" | "full" | "scheduled" {
-  if (limit !== null && count >= limit) return "full";
-  if (status !== "open") return "closed";
-  if (opensAt && new Date(opensAt) > new Date()) return "scheduled";
-  if (closesAt && new Date(closesAt) <= new Date()) return "closed";
-  return "open";
+  return availabilityBadge(
+    computeAvailability({ status, count, limit, opens_at: opensAt, closes_at: closesAt }),
+  );
 }
+
