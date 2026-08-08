@@ -35,18 +35,22 @@ begin
   normalized_song := public.normalize_entry_text(_song_title);
   normalized_url := lower(trim(coalesce(_song_url, '')));
 
-  if normalized_artist = '' and normalized_song = '' and normalized_url = '' then
+  if normalized_artist = ''
+     and normalized_song = ''
+     and normalized_url = ''
+  then
     return jsonb_build_object(
       'duplicate', false
     );
   end if;
 
-  /*
-   * Check internal selections.
-   */
+
+  -- ============================================================
+  -- CHECK INTERNAL SELECTIONS
+  -- ============================================================
+
   select
     s.id as submission_id,
-    s.country,
     i.artist,
     i.song_title,
     i.song_url
@@ -72,20 +76,21 @@ begin
     )
   limit 1;
 
+
   if found then
     return jsonb_build_object(
       'duplicate', true,
-      'type', 'song',
-      'country', hit.country
+      'type', 'song'
     );
   end if;
 
-  /*
-   * Check national-final entries.
-   */
+
+  -- ============================================================
+  -- CHECK NATIONAL FINAL ENTRIES
+  -- ============================================================
+
   select
     s.id as submission_id,
-    s.country,
     e.artist,
     e.song_title,
     e.song_url
@@ -113,20 +118,21 @@ begin
     )
   limit 1;
 
+
   if found then
     return jsonb_build_object(
       'duplicate', true,
-      'type', 'song',
-      'country', hit.country
+      'type', 'song'
     );
   end if;
 
-  /*
-   * Artist-only match.
-   */
+
+  -- ============================================================
+  -- CHECK ARTIST-ONLY MATCH
+  -- ============================================================
+
   select
-    s.id as submission_id,
-    s.country
+    s.id as submission_id
   into hit
   from public.submissions s
   left join public.internal_entries i
@@ -145,13 +151,14 @@ begin
     )
   limit 1;
 
+
   if found then
     return jsonb_build_object(
       'duplicate', true,
-      'type', 'artist',
-      'country', hit.country
+      'type', 'artist'
     );
   end if;
+
 
   return jsonb_build_object(
     'duplicate', false
@@ -160,18 +167,24 @@ begin
 end;
 $$;
 
-revoke all on function public.find_entry_duplicate(
-  uuid,
-  uuid,
-  text,
-  text,
-  text
-) from public;
 
-grant execute on function public.find_entry_duplicate(
+revoke all
+on function public.find_entry_duplicate(
   uuid,
   uuid,
   text,
   text,
   text
-) to service_role;
+)
+from public;
+
+
+grant execute
+on function public.find_entry_duplicate(
+  uuid,
+  uuid,
+  text,
+  text,
+  text
+)
+to service_role;
