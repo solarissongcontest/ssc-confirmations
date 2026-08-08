@@ -214,7 +214,7 @@ export function ConfirmationForm({
 
     (async () => {
       // 1. instant local restore (survives refresh, crash, offline)
-      const local = readLocalDraft<{ payload: ConfirmationPayload; step: number }>(round.id);
+      const local = readLocalDraft<ConfirmationPayload>(round.id);
       if (local?.payload) {
         setData({ ...local.payload, round_id: round.id });
         setStep(Math.min(local.step ?? 0, STEPS.length - 1));
