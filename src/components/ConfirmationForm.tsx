@@ -1059,9 +1059,9 @@ export function ConfirmationForm({
           res.error ===
           "duplicate_song"
         ) {
-          setBlocked(
-            "Song already submitted. This song has already been submitted for another country in this edition.",
-          );
+        setBlocked(
+          "Song already submitted. This song has already been used in Solaris Song Contest and cannot be submitted again.",
+        );
         } else if (
           res.error ===
           "duplicate_artist"
