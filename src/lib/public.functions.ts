@@ -502,7 +502,83 @@ export const getRoundAvailability =
         );
       },
     );
+/* ============================================================
+ * INSTANT ENTRY DUPLICATE CHECK
+ * ========================================================== */
 
+const duplicateCheckSchema =
+  z.object({
+    edition_id:
+      z.string().uuid(),
+
+    submission_id:
+      z
+        .string()
+        .uuid()
+        .nullable()
+        .optional(),
+
+    artist:
+      z
+        .string()
+        .trim()
+        .max(160),
+
+    song_title:
+      z
+        .string()
+        .trim()
+        .max(160),
+
+    song_url:
+      z
+        .string()
+        .trim()
+        .max(500),
+  });
+
+export const checkEntryDuplicate =
+  createServerFn({
+    method: "POST",
+  })
+    .inputValidator(
+      (data: unknown) =>
+        duplicateCheckSchema.parse(
+          data,
+        ),
+    )
+    .handler(
+      async ({
+        data,
+      }) => {
+        return rpc<{
+          duplicate: boolean;
+          type:
+            | "song"
+            | "artist"
+            | null;
+        }>(
+          "public_check_entry_duplicate",
+          {
+            _edition_id:
+              data.edition_id,
+
+            _submission_id:
+              data.submission_id ??
+              null,
+
+            _artist:
+              data.artist,
+
+            _song_title:
+              data.song_title,
+
+            _song_url:
+              data.song_url,
+          },
+        );
+      },
+    );
 /* ============================================================
  * SUBMIT CONFIRMATION
  * ========================================================== */
