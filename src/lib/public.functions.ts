@@ -258,7 +258,7 @@ export const findMySubmission = createServerFn({ method: "POST" })
       .eq("round_id", data.round_id)
       .eq("browser_session_id", data.browser_session_id)
       .maybeSingle();
-    if (!row) return { found: false as const };
+    if (!row) return { found: false as const, submission: null };
     return { found: true as const, submission: row };
   });
 
@@ -282,17 +282,18 @@ export const resolveEditToken = createServerFn({ method: "POST" })
       .eq("token_hash", hash)
       .maybeSingle();
 
-    if (!tok || !tok.active) return { valid: false as const, reason: "invalid" as const };
+    const invalid = { valid: false as const, reason: "invalid", submission: null, round: null };
+    if (!tok || !tok.active) return invalid;
     if (tok.expires_at && new Date(tok.expires_at) <= new Date())
-      return { valid: false as const, reason: "expired" as const };
+      return { ...invalid, reason: "expired" };
 
     const { data: submission } = await supabaseAdmin
       .from("submissions")
       .select(EDIT_SELECT)
       .eq("id", tok.submission_id)
       .maybeSingle();
-    if (!submission) return { valid: false as const, reason: "invalid" as const };
-    if (submission.locked) return { valid: false as const, reason: "locked" as const };
+    if (!submission) return invalid;
+    if (submission.locked) return { ...invalid, reason: "locked" };
 
     const { data: round } = await supabaseAdmin
       .from("submission_rounds")
@@ -323,5 +324,5 @@ export const resolveEditToken = createServerFn({ method: "POST" })
           }
         : null;
 
-    return { valid: true as const, submission, round: publicRound };
+    return { valid: true as const, reason: "ok", submission, round: publicRound };
   });
