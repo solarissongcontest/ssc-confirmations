@@ -379,58 +379,20 @@ export function ConfirmationForm({
   async function next() {
     if (!validate(step)) return;
 
-    if (step === 0) {
+    if (step === 0 && !editToken) {
       setBusy(true);
       try {
         const res = await lookup({ data: { round_id: round.id, country: data.country } });
         if (res.exists && !res.canEdit) {
           setBlocked(
-            "A confirmation for this country already exists in this round. Ask an organiser to reopen it if you need to make changes.",
+            "A confirmation for this country already exists in this round. Ask an organiser to reopen it, or use the personal edit link they can send you.",
           );
           setBusy(false);
           return;
         }
         if (res.exists && res.canEdit && res.submission) {
-          const s = res.submission;
-          const internal = s.internal_entries;
-          const nf = s.national_finals;
           setEditingExisting(true);
-          setData((d) => ({
-            ...d,
-            instagram_username: s.instagram_username ?? d.instagram_username,
-            country_account: s.country_account ?? "",
-            has_country_account: s.has_country_account ?? false,
-            participating: s.participating ?? true,
-            selection_method: (s.selection_method ?? "") as ConfirmationPayload["selection_method"],
-            entry_unknown: s.entry_unknown ?? false,
-            nf_entries_unknown: s.nf_entries_unknown ?? false,
-            artist: internal?.artist ?? "",
-            song_title: internal?.song_title ?? "",
-            song_url: internal?.song_url ?? "",
-            preview_start: internal?.preview_start ?? "",
-            final_clip_start: internal?.final_clip_start ?? "",
-            replacement_video_required: internal?.replacement_video_required ?? false,
-            replacement_video_url: internal?.replacement_video_url ?? "",
-            nf_name: nf?.nf_name ?? "",
-            expected_entry_count: nf?.expected_entry_count ? String(nf.expected_entry_count) : "",
-            nf_entries: (nf?.national_final_entries ?? [])
-              .slice()
-              .sort((a: { position: number }, b: { position: number }) => (a.position ?? 0) - (b.position ?? 0))
-              .map((entry: { artist: string | null; song_title: string | null; song_url: string | null }) => ({
-                artist: entry.artist ?? "",
-                song_title: entry.song_title ?? "",
-                song_url: entry.song_url ?? "",
-              })),
-            nf_date_type: (s.nf_date_type ?? "") as DateType | "",
-            nf_exact_date: s.nf_exact_date ?? "",
-            nf_approximate_text: s.nf_approximate_text ?? "",
-            nf_result_date_type: (s.nf_result_date_type ?? "") as DateType | "",
-            nf_result_exact_date: s.nf_result_exact_date ?? "",
-            nf_result_approximate_text: s.nf_result_approximate_text ?? "",
-            reveal_date_type: (s.reveal_date_type ?? "") as DateType | "",
-            reveal_exact_date: s.reveal_exact_date ?? "",
-            reveal_approximate_text: s.reveal_approximate_text ?? "",
-          }));
+          setData((d) => prefillFromSubmission(res.submission, d));
         }
       } finally {
         setBusy(false);
@@ -459,25 +421,46 @@ export function ConfirmationForm({
   async function send(participating: boolean) {
     setBusy(true);
     try {
-      const payload: ConfirmationPayload = {
+      // Re-check right before writing so a round that closed mid-form is caught early.
+      if (!editToken && !editingExisting) {
+        try {
+          const avail = await checkAvailability({ data: { round_id: round.id } });
+          if (!avail.can_accept) {
+            setBlocked(availabilityMessage(avail.reason));
+            return;
+          }
+        } catch {
+          /* fall through — the database enforces the rule atomically anyway */
+        }
+      }
+
+      const payload = {
         ...data,
         participating,
         preview_end: previewEnd,
         final_clip_end: clipEnd,
+        ...(sessionId ? { browser_session_id: sessionId } : {}),
+        ...(editToken ? { edit_token: editToken } : {}),
       };
       const res = await submit({ data: payload });
       if (!res.ok) {
-        if (res.error === "full")
-          setBlocked("This confirmation round has reached its maximum number of submissions.");
-        else if (res.error === "closed") setBlocked("Confirmations are currently closed.");
+        if (res.reason) setBlocked(availabilityMessage(res.reason));
+        else if (res.error === "full")
+          setBlocked(availabilityMessage("RESPONSE_LIMIT_REACHED"));
+        else if (res.error === "closed") setBlocked(availabilityMessage("MANUALLY_CLOSED"));
         else if (res.error === "duplicate")
           setBlocked("A confirmation for this country already exists in this round.");
+        else if (res.error === "invalid_token")
+          setBlocked("This edit link is no longer valid. Please ask an organiser for a new one.");
         else setBlocked("Something went wrong while saving. Please try again.");
         return;
       }
+      dirty.current = false;
+      clearLocalDraft(round.id);
       setDone(participating ? "submitted" : "not_participating");
     } finally {
       setBusy(false);
+
     }
   }
 
