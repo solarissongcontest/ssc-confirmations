@@ -232,7 +232,7 @@ export const loadDraft = createServerFn({ method: "POST" })
       .eq("round_id", data.round_id)
       .eq("browser_session_id", data.browser_session_id)
       .maybeSingle();
-    if (!row || row.submitted_submission_id) return { found: false as const, payload_json: "" };
+    if (!row || row.submitted_submission_id) return { found: false as const, payload_json: "", updated_at: "" };
     return {
       found: true as const,
       payload_json: JSON.stringify(row.payload),
