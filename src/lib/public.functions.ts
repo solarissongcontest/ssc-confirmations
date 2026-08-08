@@ -11,9 +11,6 @@ import type {
 
 /* ============================================================
  * PUBLIC SERVER SUPABASE CLIENT
- *
- * Uses the publishable key.
- * No service-role secret is required.
  * ========================================================== */
 
 function getPublicServerSupabase() {
@@ -44,30 +41,40 @@ function getPublicServerSupabase() {
   );
 }
 
-/*
- * The new RPCs may not exist yet in the generated Supabase types,
- * so use a small wrapper until the type file is regenerated.
- */
+/* ============================================================
+ * RPC HELPER
+ *
+ * Important:
+ * Supabase rpc() must stay bound to the client because internally
+ * it uses this.rest.rpc(...).
+ * ========================================================== */
+
 async function rpc<T>(
   name: string,
   args: Record<string, unknown>,
 ): Promise<T> {
-  const db = getPublicServerSupabase();
+  const db =
+    getPublicServerSupabase();
 
-  const rpcFn = db.rpc as unknown as (
-    functionName: string,
-    parameters?: Record<string, unknown>,
-  ) => Promise<{
-    data: unknown;
-    error: {
-      message: string;
-    } | null;
-  }>;
+  const boundRpc =
+    db.rpc.bind(db) as unknown as (
+      functionName: string,
+      parameters?: Record<
+        string,
+        unknown
+      >,
+    ) => Promise<{
+      data: unknown;
+
+      error: {
+        message: string;
+      } | null;
+    }>;
 
   const {
     data,
     error,
-  } = await rpcFn(
+  } = await boundRpc(
     name,
     args,
   );
@@ -273,10 +280,21 @@ export interface PublicRound {
   id: string;
   name: string;
   status: string;
-  opens_at: string | null;
-  closes_at: string | null;
-  response_limit: number | null;
+
+  opens_at:
+    | string
+    | null;
+
+  closes_at:
+    | string
+    | null;
+
+  response_limit:
+    | number
+    | null;
+
   response_count: number;
+
   edition_id: string;
   edition_name: string;
   edition_number: number;
@@ -449,7 +467,7 @@ export const getPublicRounds =
   );
 
 /* ============================================================
- * AVAILABILITY
+ * ROUND AVAILABILITY
  * ========================================================== */
 
 export const getRoundAvailability =
@@ -486,7 +504,7 @@ export const getRoundAvailability =
     );
 
 /* ============================================================
- * SUBMIT
+ * SUBMIT CONFIRMATION
  * ========================================================== */
 
 export const submitConfirmation =
@@ -537,8 +555,11 @@ export const submitConfirmation =
         try {
           return await rpc<{
             ok: boolean;
+
             error?: string;
+
             reason?: AvailabilityReason;
+
             submission_id?: string;
           }>(
             "submit_confirmation",
@@ -593,7 +614,9 @@ export const lookupSubmission =
         const result =
           await rpc<{
             exists: boolean;
+
             can_edit?: boolean;
+
             submission?: unknown;
           }>(
             "public_lookup_submission",
@@ -685,6 +708,7 @@ export const saveDraft =
             string,
             unknown
           >;
+
           step?: number;
         };
 
@@ -706,6 +730,7 @@ export const saveDraft =
 
         return rpc<{
           ok: boolean;
+
           saved_at: string;
         }>(
           "public_save_draft",
@@ -746,6 +771,7 @@ export const loadDraft =
       (
         data: {
           round_id: string;
+
           browser_session_id:
             string;
         },
@@ -773,7 +799,9 @@ export const loadDraft =
         const result =
           await rpc<{
             found: boolean;
+
             payload?: unknown;
+
             updated_at?: string;
           }>(
             "public_load_draft",
@@ -818,7 +846,7 @@ export const loadDraft =
     );
 
 /* ============================================================
- * PREVIOUS RESPONSE FROM THIS BROWSER
+ * FIND SUBMISSION FROM THIS BROWSER
  * ========================================================== */
 
 export const findMySubmission =
@@ -829,6 +857,7 @@ export const findMySubmission =
       (
         data: {
           round_id: string;
+
           browser_session_id:
             string;
         },
@@ -856,15 +885,21 @@ export const findMySubmission =
         const result =
           await rpc<{
             found: boolean;
+
             submission?: {
               id: string;
+
               country: string;
+
               instagram_username:
                 string;
+
               submitted_at:
                 string;
+
               editing_allowed:
                 boolean;
+
               locked:
                 boolean;
             };
@@ -945,25 +980,36 @@ export const resolveEditToken =
         const result =
           await rpc<{
             valid: boolean;
+
             reason: string;
+
             submission?: unknown;
+
             round?: {
               id: string;
+
               name: string;
+
               status: string;
+
               opens_at:
                 | string
                 | null;
+
               closes_at:
                 | string
                 | null;
+
               response_limit:
                 | number
                 | null;
+
               edition_id:
                 string;
+
               edition_name:
                 string;
+
               edition_number:
                 number;
             };
