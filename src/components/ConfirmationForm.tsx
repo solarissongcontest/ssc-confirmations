@@ -1650,7 +1650,7 @@ export function ConfirmationForm({
                       )
                     }
                     placeholder="MM:SS — e.g. 01:12"
-                    inputMode="numeric"
+                    inputMode="text"
                   />
 
                   {previewEnd ? (
@@ -1685,7 +1685,7 @@ export function ConfirmationForm({
                       )
                     }
                     placeholder="MM:SS — e.g. 00:48"
-                    inputMode="numeric"
+                    inputMode="text"
                   />
 
                   {clipEnd ? (
