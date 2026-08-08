@@ -454,6 +454,56 @@ const [linkType, setLinkType] = useState<"reusable" | "one_time">("reusable");
 </section>
 
         <section className="surface p-5">
+  <div className="mb-4 flex items-center gap-2">
+    <Shield className="size-4 text-muted-foreground" />
+
+    <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+      Technical information
+    </h2>
+  </div>
+
+  <Row
+    label="Initial IP"
+    value={
+      technical?.ip_history?.length
+        ? technical.ip_history[
+            technical.ip_history.length - 1
+          ]?.ip_address ?? "—"
+        : "—"
+    }
+  />
+
+  <Row
+    label="Latest IP"
+    value={technical?.ip_history?.[0]?.ip_address ?? "—"}
+  />
+
+  <Row
+    label="Known IP addresses"
+    value={technical?.ip_history?.length ?? 0}
+  />
+
+  <div className="mt-4 space-y-2">
+    {(technical?.ip_history ?? []).map((ip) => (
+      <div
+        key={ip.id}
+        className="rounded-lg border border-border px-3 py-2 text-xs"
+      >
+        <p className="font-medium">{ip.ip_address}</p>
+
+        <p className="mt-1 text-muted-foreground">
+          First seen: {new Date(ip.first_seen_at).toLocaleString()}
+        </p>
+
+        <p className="text-muted-foreground">
+          Last seen: {new Date(ip.last_seen_at).toLocaleString()}
+        </p>
+      </div>
+    ))}
+  </div>
+</section>
+        
+        <section className="surface p-5">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Edit history
           </h2>
