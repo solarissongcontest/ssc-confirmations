@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sparkles, Lock } from "lucide-react";
 
 import { getPublicRounds, type PublicRound } from "@/lib/public.functions";
 import { ConfirmationForm } from "@/components/ConfirmationForm";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { roundStateLabel } from "@/lib/ssc";
+import { availabilityBadge, computeAvailability } from "@/lib/ssc";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -56,11 +57,60 @@ function StateBadge({ state }: { state: string }) {
 }
 
 function Index() {
-  const rounds: PublicRound[] = Route.useLoaderData();
-  const [selected, setSelected] = useState<PublicRound | null>(null);
+  const initial: PublicRound[] = Route.useLoaderData();
+  const [rounds, setRounds] = useState<PublicRound[]>(initial);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const stateOf = (r: PublicRound) =>
-    roundStateLabel(r.status, r.response_count, r.response_limit, r.opens_at, r.closes_at);
+  // Live counters and status changes, pushed to every open form.
+  useEffect(() => {
+    const channel = supabase
+      .channel("public-rounds")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "round_stats" },
+        (payload) => {
+          const row = payload.new as { round_id?: string; submitted_count?: number };
+          if (!row?.round_id) return;
+          setRounds((list) =>
+            list.map((r) =>
+              r.id === row.round_id ? { ...r, response_count: row.submitted_count ?? r.response_count } : r,
+            ),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "submission_rounds" },
+        (payload) => {
+          const row = payload.new as Partial<PublicRound> & { id?: string };
+          if (!row?.id) return;
+          setRounds((list) => list.map((r) => (r.id === row.id ? { ...r, ...row } : r)));
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Re-evaluate scheduled open/close boundaries without a refresh.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 15_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const reasonOf = (r: PublicRound) =>
+    computeAvailability({
+      status: r.status,
+      count: r.response_count,
+      limit: r.response_limit,
+      opens_at: r.opens_at,
+      closes_at: r.closes_at,
+    });
+  const stateOf = (r: PublicRound) => availabilityBadge(reasonOf(r));
+  const setSelected = (r: PublicRound | null) => setSelectedId(r?.id ?? null);
+  const selected = rounds.find((r) => r.id === selectedId) ?? null;
 
   const openRounds = rounds.filter((r) => stateOf(r) === "open");
   const active = selected ?? (openRounds.length === 1 ? openRounds[0]! : null);
@@ -175,7 +225,7 @@ function Index() {
               </Button>
             ) : null}
           </div>
-          <ConfirmationForm round={active} />
+          <ConfirmationForm round={active} availability={reasonOf(active)} />
         </div>
       ) : null}
 
