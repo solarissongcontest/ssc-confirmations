@@ -4,10 +4,101 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Solaris Song Contest design system.
- * Cool midnight-blue palette with frosted liquid-glass cards.
- */
+/* ============================================================
+ * CUSTOM FONTS
+ * ========================================================== */
+
+@font-face {
+  font-family: "Classica Crastao";
+  src: url("/classicacrastao-m2pj5.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Thin.otf") format("opentype");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Extra Light.otf") format("opentype");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Book.otf") format("opentype");
+  font-weight: 450;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Black.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Ultra.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham Bold Italic.ttf") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ============================================================
+ * THEME
+ * ========================================================== */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -67,12 +158,16 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Classica Crastao", serif;
+  --font-sans: "Gotham", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* ============================================================
+ * COLOR SYSTEM
+ * ========================================================== */
+
 :root {
-  --radius: 0.875rem;
+  --radius: 1.05rem;
 
   --background: oklch(0.16 0.03 262);
   --foreground: oklch(0.97 0.008 250);
@@ -116,10 +211,13 @@
 
   --sidebar: oklch(0.2 0.025 258 / 0.55);
   --sidebar-foreground: oklch(0.96 0.01 250);
+
   --sidebar-primary: oklch(0.76 0.09 225);
   --sidebar-primary-foreground: oklch(0.18 0.03 245);
+
   --sidebar-accent: oklch(0.27 0.02 258 / 0.45);
   --sidebar-accent-foreground: oklch(0.97 0.008 250);
+
   --sidebar-border: oklch(0.72 0.02 250 / 0.2);
   --sidebar-ring: oklch(0.76 0.09 225);
 
@@ -148,15 +246,20 @@
     );
 
   --shadow-card:
-    0 1px 0 0 oklch(1 0 0 / 0.18) inset,
+    0 1px 0 0 oklch(1 0 0 / 0.22) inset,
+    0 -1px 0 0 oklch(0 0 0 / 0.18) inset,
     0 0 0 1px oklch(1 0 0 / 0.05) inset,
-    0 20px 50px -28px oklch(0.04 0.03 250 / 0.9),
-    0 10px 24px -18px oklch(0.1 0.04 255 / 0.5);
+    0 18px 48px -24px oklch(0.04 0.03 250 / 0.88),
+    0 8px 22px -16px oklch(0.1 0.04 255 / 0.5);
 }
 
 .dark {
   color-scheme: dark;
 }
+
+/* ============================================================
+ * BASE
+ * ========================================================== */
 
 @layer base {
   * {
@@ -170,68 +273,178 @@
 
   body {
     min-height: 100vh;
+
     background-color: var(--color-background);
+
     background-image:
       linear-gradient(
-        rgba(4, 10, 28, 0.42),
-        rgba(4, 10, 28, 0.42)
+        rgba(4, 10, 28, 0.35),
+        rgba(4, 10, 28, 0.35)
       ),
       var(--gradient-stage),
       url("/IMG_8909.jpeg");
+
     background-size: cover;
     background-position: center center;
     background-repeat: no-repeat;
     background-attachment: fixed;
+
     color: var(--color-foreground);
+
     font-family: var(--font-sans);
+    font-weight: 400;
+
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   h1,
   h2,
   h3 {
     font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.015em;
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-sans);
+    font-weight: 700;
     letter-spacing: -0.02em;
   }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: var(--font-sans);
+  }
+
+  button {
+    font-weight: 500;
+  }
+
+  label {
+    font-family: var(--font-sans);
+    font-weight: 500;
+  }
+
+  input,
+  textarea,
+  select {
+    background:
+      linear-gradient(
+        180deg,
+        oklch(1 0 0 / 0.07),
+        oklch(1 0 0 / 0.025)
+      ),
+      oklch(0.22 0.025 255 / 0.25);
+
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+
+    border-color: oklch(1 0 0 / 0.13);
+
+    box-shadow:
+      0 1px 0 oklch(1 0 0 / 0.1) inset,
+      0 -1px 0 oklch(0 0 0 / 0.1) inset;
+  }
 }
+
+/* ============================================================
+ * LIQUID GLASS SURFACE
+ * ========================================================== */
 
 @utility surface {
   position: relative;
   overflow: hidden;
 
   background:
+    radial-gradient(
+      120% 80% at 18% 0%,
+      oklch(1 0 0 / 0.13),
+      transparent 52%
+    ),
+    radial-gradient(
+      90% 70% at 100% 100%,
+      oklch(0.75 0.05 220 / 0.08),
+      transparent 58%
+    ),
     linear-gradient(
       180deg,
-      oklch(1 0 0 / 0.15) 0%,
-      oklch(1 0 0 / 0.05) 22%,
-      oklch(1 0 0 / 0.02) 100%
+      oklch(1 0 0 / 0.11) 0%,
+      oklch(1 0 0 / 0.04) 22%,
+      oklch(1 0 0 / 0.015) 100%
     ),
-    linear-gradient(
-      135deg,
-      oklch(0.34 0.03 250 / 0.35),
-      oklch(0.2 0.02 255 / 0.2)
-    ),
-    var(--color-card);
+    oklch(0.24 0.028 255 / 0.22);
 
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter:
+    blur(28px)
+    saturate(175%)
+    brightness(1.04);
+
+  -webkit-backdrop-filter:
+    blur(28px)
+    saturate(175%)
+    brightness(1.04);
 
   border: 1px solid oklch(1 0 0 / 0.16);
+
   border-radius: var(--radius-2xl);
 
-  box-shadow: var(--shadow-card);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.2) inset,
+    0 -1px 0 oklch(0 0 0 / 0.16) inset,
+    1px 0 0 oklch(1 0 0 / 0.04) inset,
+    -1px 0 0 oklch(1 0 0 / 0.04) inset,
+    0 18px 45px -24px oklch(0.03 0.025 255 / 0.9),
+    0 8px 20px -14px oklch(0.08 0.04 255 / 0.45);
 }
+
+/* subtle glass shine */
+@utility surface-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+@utility surface-shine-before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      transparent 35%,
+      oklch(1 0 0 / 0.06) 48%,
+      transparent 62%,
+      transparent 100%
+    );
+}
+
+/* ============================================================
+ * TEXT + ACCENTS
+ * ========================================================== */
 
 @utility text-solar {
   background-image: var(--gradient-solar);
+
   -webkit-background-clip: text;
   background-clip: text;
+
   color: transparent;
 }
 
 @utility bg-solar {
   background-image: var(--gradient-solar);
 }
+
+/* ============================================================
+ * ANIMATION
+ * ========================================================== */
 
 @keyframes rise-in {
   from {
