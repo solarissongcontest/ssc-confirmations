@@ -148,19 +148,53 @@ function DateChoice({
   );
 }
 
-export function ConfirmationForm({ round }: { round: PublicRound }) {
+export interface ConfirmationFormProps {
+  round: PublicRound;
+  /** Secure edit link token — bypasses duplicate checks and targets one submission. */
+  editToken?: string;
+  /** Pre-filled submission when arriving through an edit link. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prefill?: any;
+  /** Live availability reason from the parent page (realtime). */
+  availability?: AvailabilityReason;
+}
+
+export function ConfirmationForm({
+  round,
+  editToken,
+  prefill,
+  availability,
+}: ConfirmationFormProps) {
   const submit = useServerFn(submitConfirmation);
   const lookup = useServerFn(lookupSubmission);
+  const persistDraft = useServerFn(saveDraft);
+  const fetchDraft = useServerFn(loadDraft);
+  const findMine = useServerFn(findMySubmission);
+  const checkAvailability = useServerFn(getRoundAvailability);
 
   const [step, setStep] = useState(0);
-  const [data, setData] = useState<ConfirmationPayload>(() => emptyPayload(round.id));
+  const [data, setData] = useState<ConfirmationPayload>(() =>
+    prefill ? prefillFromSubmission(prefill, emptyPayload(round.id)) : emptyPayload(round.id),
+  );
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<null | "submitted" | "not_participating">(null);
   const [blocked, setBlocked] = useState<string | null>(null);
-  const [editingExisting, setEditingExisting] = useState(false);
+  const [editingExisting, setEditingExisting] = useState(Boolean(prefill));
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [restored, setRestored] = useState<string | null>(null);
+  const [alreadyResponded, setAlreadyResponded] = useState<{
+    country: string;
+    submitted_at: string;
+  } | null>(null);
+
+  const sessionId = useMemo(() => getBrowserSessionId(), []);
+  const hydrated = useRef(false);
+  const dirty = useRef(false);
 
   const set = <K extends keyof ConfirmationPayload>(key: K, value: ConfirmationPayload[K]) => {
+    dirty.current = true;
     setData((d) => ({ ...d, [key]: value }));
     setErrors((e) => {
       const next = { ...e };
@@ -169,6 +203,111 @@ export function ConfirmationForm({ round }: { round: PublicRound }) {
     });
   };
 
+  /* ------------------------- recovery on first mount ------------------------ */
+  useEffect(() => {
+    if (hydrated.current || editToken) {
+      hydrated.current = true;
+      return;
+    }
+    hydrated.current = true;
+    let cancelled = false;
+
+    (async () => {
+      // 1. instant local restore (survives refresh, crash, offline)
+      const local = readLocalDraft<{ payload: ConfirmationPayload; step: number }>(round.id);
+      if (local?.payload) {
+        setData({ ...local.payload, round_id: round.id });
+        setStep(Math.min(local.step ?? 0, STEPS.length - 1));
+        setRestored(local.savedAt);
+      }
+
+      if (!sessionId) return;
+
+      // 2. server-side draft (survives a different tab / cleared tab state)
+      try {
+        const remote = await fetchDraft({
+          data: { round_id: round.id, browser_session_id: sessionId },
+        });
+        if (!cancelled && remote.found && remote.payload_json) {
+          const parsed = JSON.parse(remote.payload_json) as {
+            payload?: ConfirmationPayload;
+            step?: number;
+          };
+          const remoteAt = new Date(remote.updated_at).getTime();
+          const localAt = local ? new Date(local.savedAt).getTime() : 0;
+          if (parsed.payload && remoteAt > localAt) {
+            setData({ ...parsed.payload, round_id: round.id });
+            setStep(Math.min(parsed.step ?? 0, STEPS.length - 1));
+            setRestored(remote.updated_at);
+          }
+        }
+      } catch {
+        /* offline — local draft already applied */
+      }
+
+      // 3. an existing submission from this browser
+      try {
+        const mine = await findMine({
+          data: { round_id: round.id, browser_session_id: sessionId },
+        });
+        if (!cancelled && mine.found && mine.submission) {
+          setAlreadyResponded({
+            country: mine.submission.country,
+            submitted_at: mine.submission.submitted_at,
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round.id]);
+
+  /* -------------------------------- autosave -------------------------------- */
+  const autosave = useCallback(
+    async (payload: ConfirmationPayload, currentStep: number) => {
+      writeLocalDraft(round.id, payload, currentStep);
+      if (!sessionId || editToken) return;
+      setSaving(true);
+      try {
+        const res = await persistDraft({
+          data: {
+            round_id: round.id,
+            browser_session_id: sessionId,
+            payload_json: JSON.stringify({ payload, step: currentStep }),
+          },
+        });
+        if (res.ok) setSavedAt(res.saved_at);
+      } catch {
+        /* keep the local copy; retry on the next change */
+      } finally {
+        setSaving(false);
+      }
+    },
+    [round.id, sessionId, editToken, persistDraft],
+  );
+
+  useEffect(() => {
+    if (!hydrated.current || !dirty.current || done) return;
+    const t = setTimeout(() => void autosave(data, step), 1200);
+    return () => clearTimeout(t);
+  }, [data, step, done, autosave]);
+
+  // flush before the tab closes
+  useEffect(() => {
+    const handler = () => {
+      if (dirty.current && !done) writeLocalDraft(round.id, data, step);
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [data, step, done, round.id]);
+
+  const liveClosed = availability && availability !== "OPEN" && !editToken;
+
   const visibleSteps = useMemo(() => {
     if (!data.participating) return ["Delegation", "Participation"];
     return STEPS as unknown as string[];
@@ -176,6 +315,7 @@ export function ConfirmationForm({ round }: { round: PublicRound }) {
 
   const previewEnd = offsetTimestamp(data.preview_start, 25);
   const clipEnd = offsetTimestamp(data.final_clip_start, 90);
+
 
   function validate(current: number): boolean {
     const e: Errors = {};
