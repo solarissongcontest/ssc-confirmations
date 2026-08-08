@@ -3,11 +3,22 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  Copy,
+  ExternalLink,
+  Link2,
+  RefreshCw,
+  Shield,
+  Trash2,
+} from "lucide-react";
 
 import {
+  createEditLink,
   deleteSubmission,
   getSubmission,
+  getSubmissionTechnical,
+  revokeEditLink,
   setWinningEntry,
   updateSubmissionFlags,
 } from "@/lib/admin.functions";
