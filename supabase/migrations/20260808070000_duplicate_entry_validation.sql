@@ -46,7 +46,14 @@ begin
 
 
   -- ============================================================
-  -- CHECK INTERNAL SELECTIONS
+  -- GLOBAL SONG CHECK
+  --
+  -- A song cannot be reused in ANY edition.
+  -- Match by:
+  --   1. normalized artist + normalized song title
+  --   2. exact normalized song URL
+  --
+  -- This checks internal selections.
   -- ============================================================
 
   select
@@ -59,8 +66,7 @@ begin
   join public.submissions s
     on s.id = i.submission_id
   where
-    s.edition_id = _edition_id
-    and s.id <> _submission_id
+    s.id <> _submission_id
     and (
       (
         normalized_artist <> ''
@@ -86,7 +92,9 @@ begin
 
 
   -- ============================================================
-  -- CHECK NATIONAL FINAL ENTRIES
+  -- GLOBAL SONG CHECK
+  --
+  -- Same rule for national-final entries.
   -- ============================================================
 
   select
@@ -101,8 +109,7 @@ begin
   join public.submissions s
     on s.id = nf.submission_id
   where
-    s.edition_id = _edition_id
-    and s.id <> _submission_id
+    s.id <> _submission_id
     and (
       (
         normalized_artist <> ''
@@ -128,7 +135,10 @@ begin
 
 
   -- ============================================================
-  -- CHECK ARTIST-ONLY MATCH
+  -- ARTIST-ONLY CHECK
+  --
+  -- Artists are only blocked within the SAME edition.
+  -- They may return in future editions with another song.
   -- ============================================================
 
   select
