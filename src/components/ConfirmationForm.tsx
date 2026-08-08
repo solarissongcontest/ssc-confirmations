@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 import {
+  checkEntryDuplicate,
   findMySubmission,
   getRoundAvailability,
   loadDraft,
@@ -262,6 +263,9 @@ export function ConfirmationForm({
   const submit =
     useServerFn(submitConfirmation);
 
+  const checkDuplicate =
+    useServerFn(checkEntryDuplicate);
+
   const lookup =
     useServerFn(lookupSubmission);
 
@@ -292,6 +296,19 @@ export function ConfirmationForm({
 
   const [errors, setErrors] =
     useState<Errors>({});
+
+  const [duplicateChecks, setDuplicateChecks] =
+    useState<Record<string, "song" | "artist" | null>>({});
+
+  const [duplicateChecking, setDuplicateChecking] =
+    useState<Record<string, boolean>>({});
+
+  const [existingSubmissionId, setExistingSubmissionId] =
+    useState<string | undefined>(
+      typeof prefill?.id === "string"
+        ? prefill.id
+        : undefined,
+    );
 
   const [busy, setBusy] =
     useState(false);
@@ -600,6 +617,242 @@ export function ConfirmationForm({
     round.id,
   ]);
 
+  /* ---------------- instant duplicate checking ---------------- */
+
+  const duplicateMessage = (
+    type: "song" | "artist" | null,
+  ) => {
+    if (type === "song") {
+      return "This song has already been used in Solaris Song Contest and cannot be submitted again.";
+    }
+
+    if (type === "artist") {
+      return "This artist has already been submitted for another country in this edition.";
+    }
+
+    return null;
+  };
+
+  const normalizeEntryText = (value: string) =>
+    value
+      .normalize("NFKC")
+      .toLocaleLowerCase()
+      .trim()
+      .replace(/[\s\p{P}]+/gu, "");
+
+  useEffect(() => {
+    if (
+      step !== 3 ||
+      data.selection_method !== "internal" ||
+      data.entry_unknown
+    ) {
+      setDuplicateChecks((current) => ({
+        ...current,
+        internal: null,
+      }));
+      return;
+    }
+
+    const artist = data.artist.trim();
+    const songTitle = data.song_title.trim();
+    const songUrl = data.song_url.trim();
+
+    if (!artist && !songTitle && !songUrl) {
+      setDuplicateChecks((current) => ({
+        ...current,
+        internal: null,
+      }));
+      return;
+    }
+
+    let cancelled = false;
+
+    const timer = window.setTimeout(async () => {
+      setDuplicateChecking((current) => ({
+        ...current,
+        internal: true,
+      }));
+
+      try {
+        const result = await checkDuplicate({
+          data: {
+            edition_id: round.edition_id,
+            ...(existingSubmissionId
+              ? { submission_id: existingSubmissionId }
+              : {}),
+            artist,
+            song_title: songTitle,
+            song_url: songUrl,
+          },
+        });
+
+        if (!cancelled) {
+          setDuplicateChecks((current) => ({
+            ...current,
+            internal:
+              result.ok && result.duplicate
+                ? result.type
+                : null,
+          }));
+        }
+      } finally {
+        if (!cancelled) {
+          setDuplicateChecking((current) => ({
+            ...current,
+            internal: false,
+          }));
+        }
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    step,
+    data.selection_method,
+    data.entry_unknown,
+    data.artist,
+    data.song_title,
+    data.song_url,
+    round.edition_id,
+    existingSubmissionId,
+    checkDuplicate,
+  ]);
+
+  useEffect(() => {
+    if (
+      step !== 3 ||
+      data.selection_method !== "national_final" ||
+      data.nf_entries_unknown
+    ) {
+      setDuplicateChecks((current) => {
+        const next = { ...current };
+        for (const key of Object.keys(next)) {
+          if (key.startsWith("nf_")) delete next[key];
+        }
+        return next;
+      });
+      return;
+    }
+
+    let cancelled = false;
+
+    const timer = window.setTimeout(async () => {
+      const nextChecks: Record<string, "song" | "artist" | null> = {};
+      const nextChecking: Record<string, boolean> = {};
+
+      for (let i = 0; i < data.nf_entries.length; i += 1) {
+        nextChecking[`nf_${i}`] = true;
+      }
+
+      setDuplicateChecking((current) => ({
+        ...current,
+        ...nextChecking,
+      }));
+
+      for (let i = 0; i < data.nf_entries.length; i += 1) {
+        const entry = data.nf_entries[i]!;
+        const artist = entry.artist.trim();
+        const songTitle = entry.song_title.trim();
+        const songUrl = entry.song_url.trim();
+
+        if (!artist && !songTitle && !songUrl) {
+          nextChecks[`nf_${i}`] = null;
+          continue;
+        }
+
+        // Catch duplicates inside the NF immediately, before anything is saved.
+        let localType: "song" | "artist" | null = null;
+        const normalizedArtist = normalizeEntryText(artist);
+        const normalizedSong = normalizeEntryText(songTitle);
+        const normalizedUrl = songUrl.toLocaleLowerCase().trim();
+
+        for (let j = 0; j < data.nf_entries.length; j += 1) {
+          if (j === i) continue;
+          const other = data.nf_entries[j]!;
+          const otherArtist = normalizeEntryText(other.artist);
+          const otherSong = normalizeEntryText(other.song_title);
+          const otherUrl = other.song_url.toLocaleLowerCase().trim();
+
+          if (
+            (normalizedArtist &&
+              normalizedSong &&
+              normalizedArtist === otherArtist &&
+              normalizedSong === otherSong) ||
+            (normalizedUrl && normalizedUrl === otherUrl)
+          ) {
+            localType = "song";
+            break;
+          }
+
+          if (normalizedArtist && normalizedArtist === otherArtist) {
+            localType = "artist";
+          }
+        }
+
+        if (localType === "song") {
+          nextChecks[`nf_${i}`] = "song";
+          continue;
+        }
+
+        try {
+          const result = await checkDuplicate({
+            data: {
+              edition_id: round.edition_id,
+              ...(existingSubmissionId
+                ? { submission_id: existingSubmissionId }
+                : {}),
+              artist,
+              song_title: songTitle,
+              song_url: songUrl,
+            },
+          });
+
+          if (result.ok && result.duplicate) {
+            nextChecks[`nf_${i}`] = result.type;
+          } else {
+            nextChecks[`nf_${i}`] = localType;
+          }
+        } catch {
+          nextChecks[`nf_${i}`] = localType;
+        }
+      }
+
+      if (!cancelled) {
+        setDuplicateChecks((current) => {
+          const next = { ...current };
+          for (const key of Object.keys(next)) {
+            if (key.startsWith("nf_")) delete next[key];
+          }
+          return { ...next, ...nextChecks };
+        });
+
+        setDuplicateChecking((current) => {
+          const next = { ...current };
+          for (const key of Object.keys(next)) {
+            if (key.startsWith("nf_")) next[key] = false;
+          }
+          return next;
+        });
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    step,
+    data.selection_method,
+    data.nf_entries_unknown,
+    data.nf_entries,
+    round.edition_id,
+    existingSubmissionId,
+    checkDuplicate,
+  ]);
+
   const liveClosed =
     availability &&
     availability !== "OPEN" &&
@@ -712,6 +965,16 @@ export function ConfirmationForm({
           "Enter a start time as MM:SS (e.g. 00:48).";
       }
 
+      if (duplicateChecks.internal === "song") {
+        e.song_title =
+          duplicateMessage("song")!;
+      } else if (
+        duplicateChecks.internal === "artist"
+      ) {
+        e.artist =
+          duplicateMessage("artist")!;
+      }
+
       if (
         data.replacement_video_required
       ) {
@@ -774,6 +1037,13 @@ export function ConfirmationForm({
                 `nf_entry_${i}`
               ] =
                 "Enter a valid song link.";
+            } else if (
+              duplicateChecks[`nf_${i}`]
+            ) {
+              e[`nf_entry_${i}`] =
+                duplicateMessage(
+                  duplicateChecks[`nf_${i}`] ?? null,
+                )!;
             }
           },
         );
@@ -905,6 +1175,14 @@ export function ConfirmationForm({
           setEditingExisting(
             true,
           );
+
+          if (
+            typeof (res.submission as { id?: unknown }).id === "string"
+          ) {
+            setExistingSubmissionId(
+              (res.submission as { id: string }).id,
+            );
+          }
 
           setData((d) =>
             prefillFromSubmission(
@@ -1059,9 +1337,9 @@ export function ConfirmationForm({
           res.error ===
           "duplicate_song"
         ) {
-        setBlocked(
-          "Song already submitted. This song has already been used in Solaris Song Contest and cannot be submitted again.",
-        );
+          setBlocked(
+            "Song already submitted. This song has already been used in Solaris Song Contest and cannot be submitted again.",
+          );
         } else if (
           res.error ===
           "duplicate_artist"
@@ -1381,10 +1659,7 @@ export function ConfirmationForm({
               />
             </Field>
 
-        <Field
-          label="Does your country have an official delegation Instagram account?"
-          labelClassName="form-question"
-        >
+            <Field label="Does your country have an official delegation Instagram account?">
               <Choice
                 options={[
                   {
@@ -1628,6 +1903,16 @@ export function ConfirmationForm({
                     placeholder="https://"
                   />
                 </Field>
+
+                {duplicateChecking.internal ? (
+                  <p className="text-xs text-muted-foreground">
+                    Checking whether this entry has already been used…
+                  </p>
+                ) : duplicateChecks.internal ? (
+                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                    {duplicateMessage(duplicateChecks.internal)}
+                  </p>
+                ) : null}
 
                 <Field
                   label="Post preview timestamp"
@@ -2074,6 +2359,18 @@ export function ConfirmationForm({
                           );
                         }}
                       />
+
+                      {duplicateChecking[`nf_${i}`] ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Checking entry…
+                        </p>
+                      ) : duplicateChecks[`nf_${i}`] ? (
+                        <p className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                          {duplicateMessage(
+                            duplicateChecks[`nf_${i}`] ?? null,
+                          )}
+                        </p>
+                      ) : null}
 
                       {errors[
                         `nf_entry_${i}`
