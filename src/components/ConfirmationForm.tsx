@@ -1381,7 +1381,10 @@ export function ConfirmationForm({
               />
             </Field>
 
-            <Field label="Does your country have an official delegation Instagram account?">
+        <Field
+          label="Does your country have an official delegation Instagram account?"
+          labelClassName="form-question"
+        >
               <Choice
                 options={[
                   {
