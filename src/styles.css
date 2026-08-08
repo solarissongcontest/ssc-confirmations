@@ -164,83 +164,84 @@
 
 /* ============================================================
  * COLOR SYSTEM
+ *
+ * Keep the underlying theme cool and neutral.
+ * The "glass" itself should not be heavily colored.
  * ========================================================== */
 
 :root {
-  --radius: 1.05rem;
+  --radius: 1.15rem;
 
-  --background: oklch(0.15 0.025 260);
-  --foreground: oklch(0.97 0.008 250);
+  --background: oklch(0.145 0.028 258);
+  --foreground: oklch(0.975 0.006 250);
 
-  --card: oklch(0.22 0.025 255 / 0.2);
-  --card-foreground: oklch(0.97 0.008 250);
+  --card: oklch(1 0 0 / 0.035);
+  --card-foreground: oklch(0.975 0.006 250);
 
-  --popover: oklch(0.21 0.025 255 / 0.42);
-  --popover-foreground: oklch(0.97 0.008 250);
+  --popover: oklch(0.21 0.018 255 / 0.58);
+  --popover-foreground: oklch(0.975 0.006 250);
 
-  --primary: oklch(0.79 0.09 220);
-  --primary-foreground: oklch(0.17 0.025 245);
+  --primary: oklch(0.82 0.095 215);
+  --primary-foreground: oklch(0.16 0.025 245);
 
-  --secondary: oklch(0.24 0.02 258 / 0.34);
-  --secondary-foreground: oklch(0.97 0.008 250);
+  --secondary: oklch(1 0 0 / 0.07);
+  --secondary-foreground: oklch(0.975 0.006 250);
 
-  --muted: oklch(0.24 0.018 258 / 0.35);
-  --muted-foreground: oklch(0.76 0.018 250);
+  --muted: oklch(1 0 0 / 0.055);
+  --muted-foreground: oklch(0.78 0.018 250);
 
-  --accent: oklch(0.82 0.06 210);
-  --accent-foreground: oklch(0.17 0.025 245);
+  --accent: oklch(0.84 0.075 205);
+  --accent-foreground: oklch(0.16 0.025 245);
 
   --destructive: oklch(0.63 0.2 22);
   --destructive-foreground: oklch(0.98 0.005 250);
 
-  --success: oklch(0.75 0.1 170);
-  --success-foreground: oklch(0.18 0.03 170);
+  --success: oklch(0.76 0.11 168);
+  --success-foreground: oklch(0.17 0.03 170);
 
-  --warning: oklch(0.74 0.05 225);
-  --warning-foreground: oklch(0.18 0.03 245);
+  --warning: oklch(0.81 0.065 205);
+  --warning-foreground: oklch(0.17 0.03 245);
 
-  --border: oklch(0.86 0.01 250 / 0.18);
-  --input: oklch(0.25 0.018 255 / 0.24);
-  --ring: oklch(0.79 0.09 220);
+  --border: oklch(1 0 0 / 0.14);
+  --input: oklch(1 0 0 / 0.055);
+  --ring: oklch(0.82 0.095 215);
 
-  --chart-1: oklch(0.79 0.09 220);
-  --chart-2: oklch(0.83 0.06 205);
-  --chart-3: oklch(0.75 0.1 170);
-  --chart-4: oklch(0.7 0.07 250);
-  --chart-5: oklch(0.62 0.09 285);
+  --chart-1: oklch(0.82 0.095 215);
+  --chart-2: oklch(0.84 0.075 205);
+  --chart-3: oklch(0.76 0.11 168);
+  --chart-4: oklch(0.72 0.07 245);
+  --chart-5: oklch(0.63 0.09 285);
 
-  --sidebar: oklch(0.19 0.02 258 / 0.42);
+  --sidebar: oklch(0.18 0.018 258 / 0.45);
   --sidebar-foreground: oklch(0.96 0.01 250);
-  --sidebar-primary: oklch(0.79 0.09 220);
-  --sidebar-primary-foreground: oklch(0.18 0.03 245);
-  --sidebar-accent: oklch(0.25 0.018 258 / 0.32);
-  --sidebar-accent-foreground: oklch(0.97 0.008 250);
-  --sidebar-border: oklch(0.86 0.01 250 / 0.16);
-  --sidebar-ring: oklch(0.79 0.09 220);
 
-  --gradient-stage:
-    radial-gradient(
-      100% 70% at 50% 0%,
-      oklch(0.38 0.08 250 / 0.16),
-      transparent 60%
-    ),
-    radial-gradient(
-      70% 55% at 85% 20%,
-      oklch(0.48 0.08 220 / 0.08),
-      transparent 60%
-    );
+  --sidebar-primary: oklch(0.82 0.095 215);
+  --sidebar-primary-foreground: oklch(0.17 0.025 245);
+
+  --sidebar-accent: oklch(1 0 0 / 0.055);
+  --sidebar-accent-foreground: oklch(0.97 0.008 250);
+
+  --sidebar-border: oklch(1 0 0 / 0.12);
+  --sidebar-ring: oklch(0.82 0.095 215);
 
   --gradient-solar:
     linear-gradient(
       135deg,
-      oklch(0.98 0.01 245),
-      oklch(0.79 0.07 220)
+      oklch(0.99 0.005 240),
+      oklch(0.85 0.055 210)
     );
 
-  --shadow-card:
-    0 1px 0 rgba(255, 255, 255, 0.14) inset,
-    0 -1px 0 rgba(0, 0, 0, 0.08) inset,
-    0 16px 40px rgba(0, 0, 0, 0.18);
+  --glass-edge:
+    rgba(255, 255, 255, 0.21);
+
+  --glass-highlight:
+    rgba(255, 255, 255, 0.16);
+
+  --glass-soft-highlight:
+    rgba(255, 255, 255, 0.07);
+
+  --glass-shadow:
+    rgba(0, 0, 0, 0.17);
 }
 
 .dark {
@@ -264,48 +265,77 @@
   body {
     min-height: 100vh;
 
-    background-color: var(--color-background);
+    background-color:
+      var(--color-background);
 
     background-image:
       linear-gradient(
-        rgba(4, 10, 28, 0.16),
-        rgba(4, 10, 28, 0.16)
+        rgba(2, 7, 20, 0.05),
+        rgba(2, 7, 20, 0.05)
       ),
-      var(--gradient-stage),
       url("/IMG_8909.jpeg");
 
-    background-size: cover;
-    background-position: center center;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
+    background-size:
+      cover;
 
-    color: var(--color-foreground);
+    background-position:
+      center center;
 
-    font-family: var(--font-sans);
-    font-weight: 400;
+    background-repeat:
+      no-repeat;
 
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
+    background-attachment:
+      fixed;
+
+    color:
+      var(--color-foreground);
+
+    font-family:
+      var(--font-sans);
+
+    font-weight:
+      400;
+
+    -webkit-font-smoothing:
+      antialiased;
+
+    text-rendering:
+      optimizeLegibility;
   }
 
   h1,
   h2,
   h3 {
-    font-family: var(--font-display);
-    font-weight: 400;
-    text-transform: uppercase;
-    letter-spacing: 0.015em;
-    line-height: 1.02;
+    font-family:
+      var(--font-display);
+
+    font-weight:
+      400;
+
+    text-transform:
+      uppercase;
+
+    letter-spacing:
+      0.018em;
+
+    line-height:
+      1;
   }
 
   h4,
   h5,
   h6 {
-    font-family: var(--font-sans);
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family:
+      var(--font-sans);
+
+    font-weight:
+      700;
+
+    letter-spacing:
+      -0.02em;
   }
 
+  body,
   p,
   span,
   div,
@@ -314,15 +344,18 @@
   input,
   textarea,
   select {
-    font-family: var(--font-sans);
+    font-family:
+      var(--font-sans);
   }
 
   button {
-    font-weight: 500;
+    font-weight:
+      500;
   }
 
   label {
-    font-weight: 500;
+    font-weight:
+      500;
   }
 
   input,
@@ -331,24 +364,31 @@
     background:
       linear-gradient(
         180deg,
-        rgba(255, 255, 255, 0.055),
-        rgba(255, 255, 255, 0.018)
-      ),
-      rgba(10, 20, 45, 0.18);
+        rgba(255, 255, 255, 0.09) 0%,
+        rgba(255, 255, 255, 0.035) 100%
+      );
 
     backdrop-filter:
-      blur(18px)
-      saturate(130%);
+      blur(16px)
+      saturate(150%)
+      brightness(1.035);
 
     -webkit-backdrop-filter:
-      blur(18px)
-      saturate(130%);
+      blur(16px)
+      saturate(150%)
+      brightness(1.035);
 
     border:
-      1px solid rgba(255, 255, 255, 0.1);
+      1px solid
+      rgba(255, 255, 255, 0.105);
 
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      inset 0 1px 0
+        rgba(255, 255, 255, 0.11),
+      inset 0 -1px 0
+        rgba(0, 0, 0, 0.05),
+      0 5px 16px
+        rgba(0, 0, 0, 0.06);
 
     color:
       var(--color-foreground);
@@ -357,67 +397,184 @@
   input::placeholder,
   textarea::placeholder {
     color:
-      rgba(225, 235, 248, 0.55);
+      rgba(226, 235, 246, 0.56);
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color:
+      rgba(155, 225, 255, 0.42);
+
+    box-shadow:
+      inset 0 1px 0
+        rgba(255, 255, 255, 0.14),
+      0 0 0 3px
+        rgba(115, 205, 255, 0.11),
+      0 6px 18px
+        rgba(0, 0, 0, 0.07);
   }
 }
 
 /* ============================================================
- * LIQUID GLASS SURFACE
+ * LIQUID GLASS
+ *
+ * The important difference from frosted glass:
+ * - almost no solid fill
+ * - strong optical interaction with background
+ * - concentrated edge highlights
+ * - subtle colour spill
+ * - layered reflections rather than one flat overlay
  * ========================================================== */
 
 @utility surface {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
+  position:
+    relative;
+
+  overflow:
+    hidden;
+
+  isolation:
+    isolate;
 
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.07),
-      rgba(255, 255, 255, 0.02)
-    ),
-    rgba(8, 18, 42, 0.18);
+      rgba(255, 255, 255, 0.075) 0%,
+      rgba(255, 255, 255, 0.028) 38%,
+      rgba(255, 255, 255, 0.012) 100%
+    );
 
   backdrop-filter:
-    blur(26px)
-    saturate(145%);
+    blur(18px)
+    saturate(185%)
+    brightness(1.075)
+    contrast(1.04);
 
   -webkit-backdrop-filter:
-    blur(26px)
-    saturate(145%);
+    blur(18px)
+    saturate(185%)
+    brightness(1.075)
+    contrast(1.04);
 
   border:
-    1px solid rgba(255, 255, 255, 0.15);
+    1px solid
+    rgba(255, 255, 255, 0.18);
 
   border-radius:
-    var(--radius-2xl);
+    2rem;
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.03),
-    0 18px 42px rgba(0, 0, 0, 0.17);
+    inset 0 1.25px 0
+      rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0
+      rgba(0, 0, 0, 0.08),
+    inset 1px 0 0
+      rgba(255, 255, 255, 0.055),
+    inset -1px 0 0
+      rgba(255, 255, 255, 0.035),
+    0 24px 55px
+      rgba(0, 0, 0, 0.16),
+    0 4px 14px
+      rgba(0, 0, 0, 0.06);
+
+  transform:
+    translateZ(0);
 }
+
+/* Top-left optical highlight */
 
 @utility surface {
   &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: -1;
+    content:
+      "";
+
+    position:
+      absolute;
+
+    inset:
+      0;
+
+    pointer-events:
+      none;
+
+    z-index:
+      -1;
 
     background:
       radial-gradient(
-        circle at 18% 0%,
-        rgba(255, 255, 255, 0.1),
-        transparent 42%
+        ellipse 72% 42% at 13% -2%,
+        rgba(255, 255, 255, 0.19) 0%,
+        rgba(255, 255, 255, 0.075) 35%,
+        transparent 70%
       ),
       radial-gradient(
-        circle at 88% 100%,
-        rgba(120, 210, 255, 0.04),
-        transparent 48%
+        ellipse 60% 45% at 104% 104%,
+        rgba(102, 206, 255, 0.085) 0%,
+        transparent 68%
+      ),
+      radial-gradient(
+        ellipse 35% 50% at -5% 86%,
+        rgba(130, 180, 255, 0.055) 0%,
+        transparent 72%
       );
   }
+
+  &::after {
+    content:
+      "";
+
+    position:
+      absolute;
+
+    inset:
+      1px;
+
+    pointer-events:
+      none;
+
+    z-index:
+      -1;
+
+    border-radius:
+      calc(2rem - 1px);
+
+    background:
+      linear-gradient(
+        116deg,
+        transparent 0%,
+        transparent 31%,
+        rgba(255, 255, 255, 0.018) 40%,
+        rgba(255, 255, 255, 0.075) 49%,
+        rgba(255, 255, 255, 0.016) 58%,
+        transparent 67%,
+        transparent 100%
+      );
+
+    mix-blend-mode:
+      screen;
+
+    opacity:
+      0.95;
+  }
+}
+
+/* ============================================================
+ * SMALL GLASS ELEMENTS
+ *
+ * Useful for pills / status chips if components use these
+ * semantic background tokens.
+ * ========================================================== */
+
+.bg-secondary,
+.bg-muted {
+  backdrop-filter:
+    blur(14px)
+    saturate(150%);
+
+  -webkit-backdrop-filter:
+    blur(14px)
+    saturate(150%);
 }
 
 /* ============================================================
@@ -425,34 +582,105 @@
  * ========================================================== */
 
 @utility text-solar {
-  background-image: var(--gradient-solar);
+  background-image:
+    var(--gradient-solar);
 
-  -webkit-background-clip: text;
-  background-clip: text;
+  -webkit-background-clip:
+    text;
 
-  color: transparent;
+  background-clip:
+    text;
+
+  color:
+    transparent;
 }
 
 @utility bg-solar {
-  background-image: var(--gradient-solar);
+  background-image:
+    var(--gradient-solar);
 }
 
 /* ============================================================
- * ANIMATIONS
+ * ANIMATION
  * ========================================================== */
 
 @keyframes rise-in {
   from {
-    opacity: 0;
-    transform: translateY(8px);
+    opacity:
+      0;
+
+    transform:
+      translateY(8px)
+      scale(0.995);
   }
 
   to {
-    opacity: 1;
-    transform: none;
+    opacity:
+      1;
+
+    transform:
+      translateY(0)
+      scale(1);
   }
 }
 
 @utility animate-rise {
-  animation: rise-in 0.35s ease-out both;
+  animation:
+    rise-in
+    0.35s
+    cubic-bezier(
+      0.2,
+      0.8,
+      0.2,
+      1
+    )
+    both;
+}
+
+/* ============================================================
+ * REDUCED TRANSPARENCY / PERFORMANCE FALLBACK
+ * ========================================================== */
+
+@supports not (
+  (backdrop-filter: blur(1px))
+  or
+  (-webkit-backdrop-filter: blur(1px))
+) {
+  .surface {
+    background:
+      rgba(14, 25, 54, 0.88);
+  }
+
+  input,
+  textarea,
+  select {
+    background:
+      rgba(22, 34, 64, 0.9);
+  }
+}
+
+/* ============================================================
+ * MOBILE
+ *
+ * Fixed backgrounds can behave badly on mobile Safari.
+ * Keep the image stable but don't rely on fixed attachment there.
+ * ========================================================== */
+
+@media (max-width: 768px) {
+  body {
+    background-attachment:
+      scroll;
+  }
+
+  .surface {
+    backdrop-filter:
+      blur(16px)
+      saturate(175%)
+      brightness(1.065);
+
+    -webkit-backdrop-filter:
+      blur(16px)
+      saturate(175%)
+      brightness(1.065);
+  }
 }
