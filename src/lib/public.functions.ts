@@ -537,6 +537,10 @@ const duplicateCheckSchema =
         .max(500),
   });
 
+export type EntryDuplicateType =
+  | "song"
+  | "artist";
+
 export const checkEntryDuplicate =
   createServerFn({
     method: "POST",
@@ -551,32 +555,59 @@ export const checkEntryDuplicate =
       async ({
         data,
       }) => {
-        return rpc<{
-          duplicate: boolean;
-          type:
-            | "song"
-            | "artist"
-            | null;
-        }>(
-          "public_check_entry_duplicate",
-          {
-            _edition_id:
-              data.edition_id,
+        try {
+          const result =
+            await rpc<{
+              duplicate: boolean;
 
-            _submission_id:
-              data.submission_id ??
-              null,
+              type:
+                | "song"
+                | "artist"
+                | null;
+            }>(
+              "public_check_entry_duplicate",
+              {
+                _edition_id:
+                  data.edition_id,
 
-            _artist:
-              data.artist,
+                _submission_id:
+                  data.submission_id ??
+                  null,
 
-            _song_title:
-              data.song_title,
+                _artist:
+                  data.artist,
 
-            _song_url:
-              data.song_url,
-          },
-        );
+                _song_title:
+                  data.song_title,
+
+                _song_url:
+                  data.song_url,
+              },
+            );
+
+          return {
+            ok: true as const,
+
+            duplicate:
+              result.duplicate,
+
+            type:
+              result.type,
+          };
+        } catch (error) {
+          console.error(
+            "Instant duplicate check failed:",
+            error,
+          );
+
+          return {
+            ok: false as const,
+
+            duplicate: false,
+
+            type: null,
+          };
+        }
       },
     );
 /* ============================================================
