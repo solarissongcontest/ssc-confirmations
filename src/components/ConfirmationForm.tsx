@@ -507,6 +507,22 @@ export function ConfirmationForm({
     );
   }
 
+  if (liveClosed) {
+    return (
+      <div className="surface animate-rise p-8 text-center">
+        <h2 className="text-xl font-semibold">This round is no longer accepting responses</h2>
+        <p className="mt-3 text-sm text-muted-foreground">
+          {availabilityMessage(availability!)}
+        </p>
+        {dirty.current ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Your answers are saved on this device in case the round reopens.
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   const stepTitle = STEPS[step];
   const progress = ((step + 1) / visibleSteps.length) * 100;
 
@@ -517,10 +533,49 @@ export function ConfirmationForm({
           <span>
             Step {step + 1} — {stepTitle}
           </span>
-          <span>{visibleSteps.length} steps</span>
+          <span className="flex items-center gap-3">
+            {saving ? (
+              <span className="flex items-center gap-1 text-accent normal-case tracking-normal">
+                <CloudUpload className="size-3.5" /> Saving…
+              </span>
+            ) : savedAt ? (
+              <span className="normal-case tracking-normal">
+                Saved {new Date(savedAt).toLocaleTimeString()}
+              </span>
+            ) : null}
+            <span>{visibleSteps.length} steps</span>
+          </span>
         </div>
         <Progress value={progress} className="h-1.5" />
       </div>
+
+      {restored ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
+          <span>
+            We restored your unfinished response from {new Date(restored).toLocaleString()}.
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              clearLocalDraft(round.id);
+              setData(emptyPayload(round.id));
+              setStep(0);
+              setRestored(null);
+            }}
+          >
+            Start over
+          </Button>
+        </div>
+      ) : null}
+
+      {alreadyResponded && !editingExisting ? (
+        <p className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          This browser already submitted a response for {alreadyResponded.country} on{" "}
+          {new Date(alreadyResponded.submitted_at).toLocaleDateString()}. Submitting again will be
+          rejected unless an organiser reopens it or sends you a personal edit link.
+        </p>
+      ) : null}
 
       {editingExisting ? (
         <p className="rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
@@ -528,6 +583,7 @@ export function ConfirmationForm({
           them and submit again.
         </p>
       ) : null}
+
 
       <div className="surface space-y-6 p-6 sm:p-8">
         {step === 0 ? (
