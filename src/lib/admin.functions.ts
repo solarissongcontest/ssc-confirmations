@@ -246,3 +246,115 @@ export const deleteSubmission = createServerFn({ method: "POST" })
     await db.from("submissions").delete().eq("id", data.id);
     return { ok: true };
   });
+
+/* --------------------------------- drafts --------------------------------- */
+
+export const listDrafts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ round_id: z.string().uuid().optional() }).parse(data ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const db = await assertAdmin(context.userId);
+    let query = db
+      .from("submission_drafts")
+      .select("id, round_id, browser_session_id, instagram_username, country, initial_ip, latest_ip, created_at, updated_at, submitted_submission_id")
+      .is("submitted_submission_id", null);
+    if (data.round_id) query = query.eq("round_id", data.round_id);
+    const { data: rows } = await query.order("updated_at", { ascending: false });
+    return rows ?? [];
+  });
+
+export const deleteDraft = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { id: string }) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const db = await assertAdmin(context.userId);
+    await db.from("submission_drafts").delete().eq("id", data.id);
+    return { ok: true };
+  });
+
+/* ----------------------------- technical info ----------------------------- */
+
+export const getSubmissionTechnical = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { id: string }) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const db = await assertAdmin(context.userId);
+    const { data: history } = await db
+      .from("submission_ip_history")
+      .select("id, ip_address, first_seen_at, last_seen_at")
+      .eq("submission_id", data.id)
+      .order("last_seen_at", { ascending: false });
+    const { data: tokens } = await db
+      .from("edit_tokens")
+      .select("id, token_type, active, created_at, expires_at, last_used_at, use_count")
+      .eq("submission_id", data.id)
+      .order("created_at", { ascending: false });
+    return { ip_history: history ?? [], tokens: tokens ?? [] };
+  });
+
+/* ------------------------------- edit links ------------------------------- */
+
+export const createEditLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        submission_id: z.string().uuid(),
+        token_type: z.enum(["one_time", "reusable"]),
+        expires_in_hours: z.number().int().min(1).max(8760).nullable(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const db = await assertAdmin(context.userId);
+    const { sha256Hex } = await import("@/lib/request.server");
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    const token = Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    await db.from("edit_tokens").insert({
+      submission_id: data.submission_id,
+      token_hash: await sha256Hex(token),
+      token_type: data.token_type,
+      expires_at: data.expires_in_hours
+        ? new Date(Date.now() + data.expires_in_hours * 3600_000).toISOString()
+        : null,
+    });
+    // Returned exactly once — only the hash is stored.
+    return { token };
+  });
+
+export const revokeEditLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { id: string }) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const db = await assertAdmin(context.userId);
+    await db.from("edit_tokens").update({ active: false }).eq("id", data.id);
+    return { ok: true };
+  });
+
+/* --------------------------- availability testing -------------------------- */
+
+export const testRoundAvailability = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { round_id: string }) =>
+    z.object({ round_id: z.string().uuid() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const db = await assertAdmin(context.userId);
+    const { data: result } = await db.rpc("round_availability", { _round_id: data.round_id });
+    return result as unknown as {
+      can_accept: boolean;
+      reason: string;
+      count: number;
+      limit: number | null;
+      remaining: number | null;
+      status: string | null;
+      opens_at: string | null;
+      closes_at: string | null;
+      server_time: string;
+    };
+  });
