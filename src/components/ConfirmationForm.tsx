@@ -104,20 +104,15 @@ function Field({
   children,
   htmlFor,
 }: {
-  label:
-    string;
+  label: string;
 
-  hint?:
-    string;
+  hint?: string | undefined;
 
-  error?:
-    string;
+  error?: string | undefined;
 
-  children:
-    React.ReactNode;
+  children: React.ReactNode;
 
-  htmlFor?:
-    string;
+  htmlFor?: string | undefined;
 }) {
   return (
     <div className="space-y-2">
