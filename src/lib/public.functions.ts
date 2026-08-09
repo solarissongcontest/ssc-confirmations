@@ -1422,3 +1422,300 @@ export const submitNextInLine =
         }
       },
     );
+/* ============================================================
+ * NEXT IN LINE
+ * ========================================================== */
+
+export interface NextInLineNfEntry {
+  id: string;
+
+  artist: string;
+
+  song_title: string;
+
+  song_url: string;
+
+  position: number;
+}
+
+export interface NextInLineCountry {
+  country: string;
+
+  edition_id: string;
+
+  source_submission_id: string;
+
+  selection_method:
+    | "internal"
+    | "national_final"
+    | "unknown"
+    | string;
+
+  nf_entries:
+    NextInLineNfEntry[];
+}
+
+
+/* ============================================================
+ * LOAD COUNTRIES + THEIR NF ENTRIES
+ * ========================================================== */
+
+export const getNextInLineCountries =
+  createServerFn({
+    method: "GET",
+  }).handler(
+    async (): Promise<
+      NextInLineCountry[]
+    > => {
+      return rpc<
+        NextInLineCountry[]
+      >(
+        "public_next_in_line_countries",
+        {},
+      );
+    },
+  );
+
+
+/* ============================================================
+ * INSTANT NEXT IN LINE DUPLICATE CHECK
+ * ========================================================== */
+
+const nextInLineDuplicateSchema =
+  z.object({
+    edition_id:
+      z.string().uuid(),
+
+    source_submission_id:
+      z.string().uuid(),
+
+    country:
+      z
+        .string()
+        .trim()
+        .min(1)
+        .max(80),
+
+    artist:
+      z
+        .string()
+        .trim()
+        .max(160),
+
+    song_title:
+      z
+        .string()
+        .trim()
+        .max(160),
+
+    song_url:
+      z
+        .string()
+        .trim()
+        .max(500),
+  });
+
+
+export const checkNextInLineDuplicate =
+  createServerFn({
+    method: "POST",
+  })
+    .inputValidator(
+      (data: unknown) =>
+        nextInLineDuplicateSchema.parse(
+          data,
+        ),
+    )
+    .handler(
+      async ({
+        data,
+      }) => {
+        try {
+          const result =
+            await rpc<{
+              duplicate: boolean;
+
+              type:
+                | "song"
+                | "artist"
+                | null;
+            }>(
+              "public_check_next_in_line_duplicate",
+              {
+                _edition_id:
+                  data.edition_id,
+
+                _source_submission_id:
+                  data.source_submission_id,
+
+                _country:
+                  data.country,
+
+                _artist:
+                  data.artist,
+
+                _song_title:
+                  data.song_title,
+
+                _song_url:
+                  data.song_url,
+              },
+            );
+
+          return {
+            ok:
+              true as const,
+
+            duplicate:
+              result.duplicate,
+
+            type:
+              result.type,
+          };
+        } catch (
+          error
+        ) {
+          console.error(
+            "Next in Line duplicate check failed:",
+            error,
+          );
+
+          return {
+            ok:
+              false as const,
+
+            duplicate:
+              false,
+
+            type:
+              null,
+          };
+        }
+      },
+    );
+
+
+/* ============================================================
+ * SUBMIT NEXT IN LINE
+ * ========================================================== */
+
+const nextInLineSubmitSchema =
+  z.object({
+    edition_id:
+      z.string().uuid(),
+
+    source_submission_id:
+      z.string().uuid(),
+
+    country:
+      z
+        .string()
+        .trim()
+        .min(1)
+        .max(80),
+
+    participating:
+      z.boolean(),
+
+    entry_unknown:
+      z.boolean(),
+
+    selection_type:
+      z.enum([
+        "internal",
+        "national_final",
+        "unknown",
+      ]),
+
+    national_final_entry_id:
+      z
+        .string()
+        .uuid()
+        .nullable()
+        .optional(),
+
+    artist:
+      z
+        .string()
+        .trim()
+        .max(160),
+
+    song_title:
+      z
+        .string()
+        .trim()
+        .max(160),
+
+    song_url:
+      z
+        .string()
+        .trim()
+        .max(500),
+
+    preview_start:
+      z
+        .string()
+        .trim()
+        .max(10),
+
+    preview_end:
+      z
+        .string()
+        .trim()
+        .max(10),
+
+    replacement_video_required:
+      z.boolean(),
+
+    replacement_video_url:
+      z
+        .string()
+        .trim()
+        .max(500),
+  });
+
+
+export const submitNextInLine =
+  createServerFn({
+    method: "POST",
+  })
+    .inputValidator(
+      (data: unknown) =>
+        nextInLineSubmitSchema.parse(
+          data,
+        ),
+    )
+    .handler(
+      async ({
+        data,
+      }) => {
+        try {
+          return await rpc<{
+            ok: boolean;
+
+            error?: string;
+          }>(
+            "submit_next_in_line",
+            {
+              payload:
+                data,
+            },
+          );
+        } catch (
+          error
+        ) {
+          console.error(
+            "Next in Line submission failed:",
+            error,
+          );
+
+          return {
+            ok:
+              false as const,
+
+            error:
+              "server",
+          };
+        }
+      },
+    );
