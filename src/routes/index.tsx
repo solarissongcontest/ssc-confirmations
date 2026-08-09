@@ -15,18 +15,22 @@ import {
 } from "lucide-react";
 
 import {
+  useServerFn,
+} from "@tanstack/react-start";
+
+import {
   findMySubmission,
   getPublicRounds,
   type PublicRound,
 } from "@/lib/public.functions";
 
 import {
-  useServerFn,
-} from "@tanstack/react-start";
-
-import {
   ConfirmationForm,
 } from "@/components/ConfirmationForm";
+
+import {
+  SubmissionReviewStatus,
+} from "@/components/SubmissionReviewStatus";
 
 import {
   Progress,
@@ -73,16 +77,15 @@ export const Route =
   });
 
 type MySubmission = {
-  found: boolean;
+  found:
+    boolean;
 
-  can_edit?: boolean;
+  can_edit?:
+    boolean;
 
-  submission?: any;
+  submission?:
+    any;
 };
-
-/* ============================================================
- * COUNTDOWN
- * ========================================================== */
 
 function formatCountdown(
   opensAt:
@@ -100,30 +103,28 @@ function formatCountdown(
     Date.now();
 
   if (
-    difference <= 0
+    difference <=
+    0
   ) {
     return "OPEN";
   }
 
-  const totalSeconds =
-    Math.max(
-      0,
-      Math.floor(
-        difference /
-          1000,
-      ),
+  const seconds =
+    Math.floor(
+      difference /
+        1000,
     );
 
   const days =
     Math.floor(
-      totalSeconds /
+      seconds /
         86400,
     );
 
   const hours =
     Math.floor(
       (
-        totalSeconds %
+        seconds %
         86400
       ) /
         3600,
@@ -132,49 +133,54 @@ function formatCountdown(
   const minutes =
     Math.floor(
       (
-        totalSeconds %
+        seconds %
         3600
       ) /
         60,
     );
 
-  const seconds =
-    totalSeconds %
+  const remaining =
+    seconds %
     60;
 
   if (
-    days > 0
+    days >
+    0
   ) {
     return `OPENS IN ${days}D ${hours}H ${minutes}M`;
   }
 
   if (
-    hours > 0
+    hours >
+    0
   ) {
     return `OPENS IN ${hours}H ${minutes}M`;
   }
 
   if (
-    minutes > 0
+    minutes >
+    0
   ) {
-    return `OPENS IN ${minutes}M ${seconds}S`;
+    return `OPENS IN ${minutes}M ${remaining}S`;
   }
 
-  return `OPENS IN ${seconds}S`;
+  return `OPENS IN ${remaining}S`;
 }
 
 function StateBadge({
   state,
   opensAt,
 }: {
-  state: string;
+  state:
+    string;
 
   opensAt?:
     | string
     | null;
 }) {
   const label =
-    state === "open"
+    state ===
+    "open"
       ? "OPEN"
       : state ===
           "full"
@@ -204,9 +210,7 @@ function StateBadge({
               : "bg-muted text-muted-foreground",
       )}
     >
-      {
-        label
-      }
+      {label}
     </span>
   );
 }
@@ -265,10 +269,6 @@ function Index() {
   ] =
     useState(0);
 
-  /* ==========================================================
-   * FIND THIS BROWSER'S RESPONSES
-   * ======================================================== */
-
   useEffect(() => {
     if (
       !sessionId ||
@@ -318,16 +318,14 @@ function Index() {
         );
 
       if (
-        cancelled
+        !cancelled
       ) {
-        return;
+        setMine(
+          Object.fromEntries(
+            entries,
+          ),
+        );
       }
-
-      setMine(
-        Object.fromEntries(
-          entries,
-        ),
-      );
     })();
 
     return () => {
@@ -339,10 +337,6 @@ function Index() {
     sessionId,
     findMine,
   ]);
-
-  /* ==========================================================
-   * LIVE
-   * ======================================================== */
 
   useEffect(() => {
     const channel =
@@ -421,7 +415,8 @@ function Index() {
           ) => {
             const row =
               payload.new as Partial<PublicRound> & {
-                id?: string;
+                id?:
+                  string;
               };
 
             if (
@@ -465,12 +460,11 @@ function Index() {
         () =>
           setTick(
             (
-              current,
+              value,
             ) =>
-              current +
+              value +
               1,
           ),
-
         1000,
       );
 
@@ -524,11 +518,6 @@ function Index() {
     ) ??
     null;
 
-  /*
-   * Only auto-open when there is literally one round.
-   * If multiple rounds exist, show the chooser so returning
-   * users can select an old closed round and edit it.
-   */
   const active =
     selected ??
     (
@@ -536,7 +525,8 @@ function Index() {
         1 &&
       stateOf(
         rounds[0]!,
-      ) === "open"
+      ) ===
+        "open"
         ? rounds[0]!
         : null
     );
@@ -575,14 +565,14 @@ function Index() {
                   round,
                 );
 
-              const myResponse =
+              const mineForRound =
                 mine[
                   round.id
                 ];
 
               const hasMine =
                 Boolean(
-                  myResponse
+                  mineForRound
                     ?.found,
                 );
 
@@ -659,8 +649,7 @@ function Index() {
                         {
                           round.response_limit
                         }{" "}
-                        spots
-                        filled
+                        spots filled
                       </p>
                     </div>
                   ) : null}
@@ -671,32 +660,29 @@ function Index() {
                         <Pencil className="size-4 text-accent" />
 
                         <p className="text-sm font-medium">
-                          Your
-                          response is
-                          already
+                          Your response
+                          is already
                           submitted
                         </p>
                       </div>
 
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {myResponse
+                        {mineForRound
                           ?.can_edit
-                          ? "Tap to edit your response."
-                          : "Editing for this round is currently closed."}
+                          ? "Tap to view the organiser review and edit your response."
+                          : "Tap to view the organiser review. Editing is currently closed."}
                       </p>
                     </div>
                   ) : state ===
                     "open" ? (
                     <p className="mt-3 text-xs font-medium text-accent">
-                      Tap to
-                      submit.
+                      Tap to submit.
                     </p>
                   ) : (
                     <p className="mt-3 text-xs text-muted-foreground">
                       New
                       submissions
-                      are
-                      currently
+                      are currently
                       closed.
                     </p>
                   )}
@@ -726,9 +712,11 @@ function Index() {
               </div>
 
               <StateBadge
-                state={stateOf(
-                  active,
-                )}
+                state={
+                  stateOf(
+                    active,
+                  )
+                }
                 opensAt={
                   active.opens_at
                 }
@@ -755,68 +743,80 @@ function Index() {
           </div>
 
           {activeMine?.found ? (
-            activeMine.can_edit &&
-            activeMine.submission ? (
-              <>
-                <div className="surface border border-accent/25 p-4">
-                  <p className="text-sm font-medium">
-                    Editing your
-                    existing
-                    response
-                  </p>
+            <>
+              <SubmissionReviewStatus
+                mode="browser"
+                roundId={
+                  active.id
+                }
+                browserSessionId={
+                  sessionId
+                }
+              />
 
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    The round
-                    itself may
-                    already be
-                    closed. Your
-                    existing
-                    submission can
-                    still be edited
-                    while editing
-                    remains open.
+              {activeMine.can_edit &&
+              activeMine.submission ? (
+                <>
+                  <div className="surface border border-accent/25 p-4">
+                    <p className="text-sm font-medium">
+                      Editing your
+                      existing
+                      response
+                    </p>
+
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      If you change
+                      your submitted
+                      entry, it will
+                      need to be
+                      checked by the
+                      organisers
+                      again.
+                    </p>
+                  </div>
+
+                  <ConfirmationForm
+                    round={
+                      active
+                    }
+                    prefill={
+                      activeMine.submission
+                    }
+                    editToken="__browser_session_edit__"
+                  />
+                </>
+              ) : (
+                <div className="surface p-8 text-center">
+                  <Lock className="mx-auto size-7 text-muted-foreground" />
+
+                  <h2 className="mt-4 text-xl font-semibold">
+                    Editing is
+                    closed
+                  </h2>
+
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Your response
+                    and organiser
+                    review remain
+                    visible, but
+                    you cannot
+                    change the
+                    submission
+                    right now.
                   </p>
                 </div>
-
-                <ConfirmationForm
-                  round={
-                    active
-                  }
-                  prefill={
-                    activeMine.submission
-                  }
-                  editToken="__browser_session_edit__"
-                />
-              </>
-            ) : (
-              <div className="surface p-8 text-center">
-                <Lock className="mx-auto size-7 text-muted-foreground" />
-
-                <h2 className="mt-4 text-xl font-semibold">
-                  Editing is
-                  closed
-                </h2>
-
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Your existing
-                  response is
-                  still saved,
-                  but the
-                  organiser has
-                  closed editing
-                  for this round
-                  or edition.
-                </p>
-              </div>
-            )
+              )}
+            </>
           ) : (
             <ConfirmationForm
               round={
                 active
               }
-              availability={reasonOf(
-                active,
-              )}
+              availability={
+                reasonOf(
+                  active,
+                )
+              }
             />
           )}
         </div>
