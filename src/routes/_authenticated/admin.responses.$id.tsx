@@ -1,15 +1,37 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+} from "@tanstack/react-router";
+
+import {
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+
+import {
+  useServerFn,
+} from "@tanstack/react-start";
+
+import {
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+
+import {
+  toast,
+} from "sonner";
+
 import {
   ArrowLeft,
+  CheckCircle2,
   Copy,
   ExternalLink,
   Link2,
   Shield,
   Trash2,
+  XCircle,
 } from "lucide-react";
 
 import {
@@ -18,33 +40,59 @@ import {
   getSubmission,
   getSubmissionTechnical,
   revokeEditLink,
-  setWinningEntry,
   updateSubmissionFlags,
 } from "@/lib/admin.functions";
+
+import {
+  getReviewHistory,
+  reviewInternalEntry,
+  reviewNationalFinalEntry,
+  setWinningEntryWithReason,
+} from "@/lib/review.functions";
 
 import {
   describeDate,
   statusOf,
   type AdminSubmission,
+  type EntryReviewStatus,
 } from "@/lib/adminModel";
 
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import {
+  Button,
+} from "@/components/ui/button";
 
-export const Route = createFileRoute(
-  "/_authenticated/admin/responses/$id",
-)({
-  component: ResponseDetail,
-});
+import {
+  Textarea,
+} from "@/components/ui/textarea";
+
+import {
+  Switch,
+} from "@/components/ui/switch";
+
+import {
+  Label,
+} from "@/components/ui/label";
+
+import {
+  cn,
+} from "@/lib/utils";
+
+export const Route =
+  createFileRoute(
+    "/_authenticated/admin/responses/$id",
+  )({
+    component:
+      ResponseDetail,
+  });
 
 function Row({
   label,
   value,
 }: {
   label: string;
-  value: React.ReactNode;
+
+  value:
+    ReactNode;
 }) {
   return (
     <div className="flex flex-wrap justify-between gap-2 border-b border-border/60 py-2 text-sm last:border-0">
@@ -59,90 +107,196 @@ function Row({
   );
 }
 
+function ReviewBadge({
+  status,
+}: {
+  status:
+    EntryReviewStatus;
+}) {
+  const bad =
+    status ===
+      "declined" ||
+    status ===
+      "removed";
+
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest",
+
+        status ===
+          "accepted"
+          ? "bg-success/15 text-success"
+          : bad
+            ? "bg-destructive/15 text-destructive"
+            : "bg-warning/15 text-warning",
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
 function ResponseDetail() {
-  const { id } = Route.useParams();
+  const {
+    id,
+  } =
+    Route.useParams();
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const qc = useQueryClient();
+  const qc =
+    useQueryClient();
 
-  const get = useServerFn(
-    getSubmission,
-  );
+  const get =
+    useServerFn(
+      getSubmission,
+    );
 
-  const updateFlags = useServerFn(
-    updateSubmissionFlags,
-  );
+  const updateFlags =
+    useServerFn(
+      updateSubmissionFlags,
+    );
 
-  const setWinner = useServerFn(
-    setWinningEntry,
-  );
+  const remove =
+    useServerFn(
+      deleteSubmission,
+    );
 
-  const remove = useServerFn(
-    deleteSubmission,
-  );
+  const getTechnical =
+    useServerFn(
+      getSubmissionTechnical,
+    );
 
-  const getTechnical = useServerFn(
-    getSubmissionTechnical,
-  );
+  const generateEditLink =
+    useServerFn(
+      createEditLink,
+    );
 
-  const generateEditLink = useServerFn(
-    createEditLink,
-  );
+  const revokeLink =
+    useServerFn(
+      revokeEditLink,
+    );
 
-  const revokeLink = useServerFn(
-    revokeEditLink,
-  );
+  const reviewInternal =
+    useServerFn(
+      reviewInternalEntry,
+    );
+
+  const reviewNf =
+    useServerFn(
+      reviewNationalFinalEntry,
+    );
+
+  const setWinner =
+    useServerFn(
+      setWinningEntryWithReason,
+    );
+
+  const getHistory =
+    useServerFn(
+      getReviewHistory,
+    );
 
   const [
     generatedLink,
     setGeneratedLink,
-  ] = useState<string | null>(null);
+  ] =
+    useState<
+      string | null
+    >(null);
 
   const [
     linkType,
     setLinkType,
-  ] = useState<
-    "reusable" | "one_time"
-  >("reusable");
+  ] =
+    useState<
+      "reusable"
+      | "one_time"
+    >(
+      "reusable",
+    );
 
-  /* ------------------------------------------------------------
-   * MAIN SUBMISSION QUERY
-   * ---------------------------------------------------------- */
+  const [
+    notes,
+    setNotes,
+  ] =
+    useState("");
 
-  const { data } = useQuery({
-    queryKey: [
-      "submission",
-      id,
-    ],
+  const [
+    internalReason,
+    setInternalReason,
+  ] =
+    useState("");
 
-    queryFn: () =>
-      get({
-        data: {
-          id,
-        },
-      }),
-  });
-
-  /* ------------------------------------------------------------
-   * TECHNICAL INFO + EDIT TOKENS
-   * ---------------------------------------------------------- */
+  const [
+    nfReasons,
+    setNfReasons,
+  ] =
+    useState<
+      Record<
+        string,
+        string
+      >
+    >({});
 
   const {
-    data: technical,
-  } = useQuery({
-    queryKey: [
-      "submission-technical",
-      id,
-    ],
+    data,
+  } =
+    useQuery({
+      queryKey: [
+        "submission",
+        id,
+      ],
 
-    queryFn: () =>
-      getTechnical({
-        data: {
-          id,
-        },
-      }),
-  });
+      queryFn:
+        () =>
+          get({
+            data: {
+              id,
+            },
+          }),
+    });
+
+  const {
+    data:
+      technical,
+  } =
+    useQuery({
+      queryKey: [
+        "submission-technical",
+        id,
+      ],
+
+      queryFn:
+        () =>
+          getTechnical({
+            data: {
+              id,
+            },
+          }),
+    });
+
+  const {
+    data:
+      reviewHistory,
+  } =
+    useQuery({
+      queryKey: [
+        "submission-review-history",
+        id,
+      ],
+
+      queryFn:
+        () =>
+          getHistory({
+            data: {
+              submission_id:
+                id,
+            },
+          }),
+    });
 
   const submission =
     data?.submission as
@@ -150,13 +304,10 @@ function ResponseDetail() {
       | null
       | undefined;
 
-  const [
-    notes,
-    setNotes,
-  ] = useState("");
-
   useEffect(() => {
-    if (submission) {
+    if (
+      submission
+    ) {
       setNotes(
         submission.admin_notes ??
           "",
@@ -167,12 +318,42 @@ function ResponseDetail() {
     submission?.admin_notes,
   ]);
 
-  if (!submission) {
+  if (
+    !submission
+  ) {
     return (
       <p className="text-sm text-muted-foreground">
         Loading response…
       </p>
     );
+  }
+
+  const internal =
+    submission.internal_entries;
+
+  const nf =
+    submission.national_finals;
+
+  function refresh() {
+    void qc.invalidateQueries({
+      queryKey: [
+        "submission",
+        id,
+      ],
+    });
+
+    void qc.invalidateQueries({
+      queryKey: [
+        "submissions",
+      ],
+    });
+
+    void qc.invalidateQueries({
+      queryKey: [
+        "submission-review-history",
+        id,
+      ],
+    });
   }
 
   async function flags(
@@ -188,25 +369,173 @@ function ResponseDetail() {
       },
     });
 
-    qc.invalidateQueries({
-      queryKey: [
-        "submission",
-        id,
-      ],
-    });
-
-    qc.invalidateQueries({
-      queryKey: [
-        "submissions",
-      ],
-    });
+    refresh();
   }
 
-  const internal =
-    submission.internal_entries;
+  async function doInternalReview(
+    status:
+      | "pending"
+      | "accepted"
+      | "declined",
+  ) {
+    if (
+      !internal
+    ) {
+      return;
+    }
 
-  const nf =
-    submission.national_finals;
+    const reason =
+      internalReason.trim();
+
+    if (!reason) {
+      toast.error(
+        "A reason is required.",
+      );
+
+      return;
+    }
+
+    await reviewInternal({
+      data: {
+        entry_id:
+          internal.id,
+
+        status,
+
+        reason,
+      },
+    });
+
+    setInternalReason(
+      "",
+    );
+
+    refresh();
+
+    toast.success(
+      `Entry ${status}`,
+    );
+  }
+
+  async function doNfReview(
+    entryId:
+      string,
+
+    status:
+      | "pending"
+      | "accepted"
+      | "declined"
+      | "removed",
+  ) {
+    const reason =
+      (
+        nfReasons[
+          entryId
+        ] ??
+        ""
+      ).trim();
+
+    if (!reason) {
+      toast.error(
+        "A reason is required.",
+      );
+
+      return;
+    }
+
+    await reviewNf({
+      data: {
+        entry_id:
+          entryId,
+
+        status,
+
+        reason,
+      },
+    });
+
+    setNfReasons(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        [entryId]:
+          "",
+      }),
+    );
+
+    refresh();
+
+    toast.success(
+      status ===
+        "removed"
+        ? "NF entry removed"
+        : `Entry ${status}`,
+    );
+  }
+
+  async function changeWinner(
+    entryId:
+      string,
+  ) {
+    if (!nf) {
+      return;
+    }
+
+    const reason =
+      (
+        nfReasons[
+          entryId
+        ] ??
+        ""
+      ).trim();
+
+    if (!reason) {
+      toast.error(
+        "A reason is required to change the winner.",
+      );
+
+      return;
+    }
+
+    const clearing =
+      nf.winning_entry_id ===
+      entryId;
+
+    await setWinner({
+      data: {
+        national_final_id:
+          nf.id,
+
+        entry_id:
+          clearing
+            ? null
+            : entryId,
+
+        reason,
+      },
+    });
+
+    setNfReasons(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        [entryId]:
+          "",
+      }),
+    );
+
+    refresh();
+
+    toast.success(
+      clearing
+        ? "Winner cleared"
+        : "Winner updated",
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -215,24 +544,29 @@ function ResponseDetail() {
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
+
         Back to responses
       </Link>
 
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">
-            {submission.country}
+            {
+              submission.country
+            }
           </h1>
 
           <p className="text-sm text-muted-foreground">
             @
             {
               submission.instagram_username
-            }{" "}
-            ·{" "}
-            {statusOf(
-              submission,
-            )}
+            }
+            {" · "}
+            {
+              statusOf(
+                submission,
+              )
+            }
           </p>
         </div>
 
@@ -258,7 +592,8 @@ function ResponseDetail() {
             );
 
             navigate({
-              to: "/admin/responses",
+              to:
+                "/admin/responses",
             });
           }}
         >
@@ -267,7 +602,7 @@ function ResponseDetail() {
       </header>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Delegation */}
+        {/* DELEGATION */}
 
         <section className="surface p-5">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
@@ -317,13 +652,35 @@ function ResponseDetail() {
           />
         </section>
 
-        {/* Internal Selection */}
+        {/* INTERNAL ENTRY */}
 
         {internal ? (
-          <section className="surface p-5">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-              Internal selection
-            </h2>
+          <section
+            className={cn(
+              "surface space-y-4 p-5",
+
+              internal.review_status ===
+                "declined"
+                ? "border border-destructive/50"
+                : internal.review_status ===
+                    "accepted"
+                  ? "border border-success/35"
+                  : "",
+            )}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                Internal
+                selection
+              </h2>
+
+              <ReviewBadge
+                status={
+                  internal.review_status ??
+                  "pending"
+                }
+              />
+            </div>
 
             <Row
               label="Artist"
@@ -379,33 +736,113 @@ function ResponseDetail() {
               }
             />
 
-            <Row
-              label="Replacement video"
-              value={
-                internal.replacement_video_required
-                  ? internal.replacement_video_url ??
-                    "Required"
-                  : "Not needed"
-              }
-            />
+            {internal.review_reason ? (
+              <div
+                className={cn(
+                  "rounded-xl border p-3",
+
+                  internal.review_status ===
+                    "declined"
+                    ? "border-destructive/40 bg-destructive/10"
+                    : "border-border bg-secondary/20",
+                )}
+              >
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                  Current public
+                  reason
+                </p>
+
+                <p className="mt-1 text-sm">
+                  {
+                    internal.review_reason
+                  }
+                </p>
+              </div>
+            ) : null}
+
+            <div className="space-y-2 border-t border-border/60 pt-4">
+              <Label>
+                Reason for
+                this admin
+                action *
+              </Label>
+
+              <Textarea
+                value={
+                  internalReason
+                }
+                placeholder="This reason will be visible to the participant."
+                onChange={(
+                  event,
+                ) =>
+                  setInternalReason(
+                    event.target
+                      .value,
+                  )
+                }
+              />
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    void doInternalReview(
+                      "accepted",
+                    )
+                  }
+                >
+                  <CheckCircle2 className="mr-1.5 size-4" />
+
+                  Accept
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() =>
+                    void doInternalReview(
+                      "declined",
+                    )
+                  }
+                >
+                  <XCircle className="mr-1.5 size-4" />
+
+                  Decline
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    void doInternalReview(
+                      "pending",
+                    )
+                  }
+                >
+                  Reset to
+                  pending
+                </Button>
+              </div>
+            </div>
           </section>
         ) : null}
 
-        {/* National Final */}
+        {/* NATIONAL FINAL */}
 
         {nf ? (
-          <section className="surface p-5">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-              National Final
-            </h2>
+          <section className="surface space-y-4 p-5 lg:col-span-2">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                National Final
+              </h2>
 
-            <Row
-              label="Name"
-              value={
-                nf.nf_name ??
-                "—"
-              }
-            />
+              <p className="mt-1 text-sm">
+                {
+                  nf.nf_name ??
+                  "Unnamed National Final"
+                }
+              </p>
+            </div>
 
             <Row
               label="Expected entries"
@@ -417,110 +854,267 @@ function ResponseDetail() {
 
             <Row
               label="NF date"
-              value={describeDate(
-                submission.nf_date_type,
-                submission.nf_exact_date,
-                submission.nf_approximate_text,
-              )}
+              value={
+                describeDate(
+                  submission.nf_date_type,
+                  submission.nf_exact_date,
+                  submission.nf_approximate_text,
+                )
+              }
             />
 
             <Row
               label="Result date"
-              value={describeDate(
-                submission.nf_result_date_type,
-                submission.nf_result_exact_date,
-                submission.nf_result_approximate_text,
-              )}
+              value={
+                describeDate(
+                  submission.nf_result_date_type,
+                  submission.nf_result_exact_date,
+                  submission.nf_result_approximate_text,
+                )
+              }
             />
 
-            <ul className="mt-4 space-y-2">
+            <div className="space-y-3">
               {nf.national_final_entries.map(
-                (entry) => (
-                  <li
+                (
+                  entry,
+                ) => (
+                  <div
                     key={
                       entry.id
                     }
-                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm"
+                    className={cn(
+                      "rounded-xl border p-4",
+
+                      entry.removed ||
+                      entry.review_status ===
+                        "declined"
+                        ? "border-destructive/50 bg-destructive/10"
+                        : entry.review_status ===
+                            "accepted"
+                          ? "border-success/35 bg-success/5"
+                          : "border-border bg-secondary/20",
+                    )}
                   >
-                    <span>
-                      {
-                        entry.artist
-                      }{" "}
-                      —{" "}
-                      {
-                        entry.song_title
-                      }
-                    </span>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p
+                          className={cn(
+                            "font-medium",
 
-                    <Button
-                      size="sm"
-                      variant={
-                        nf.winning_entry_id ===
-                        entry.id
-                          ? "default"
-                          : "outline"
-                      }
-                      onClick={async () => {
-                        await setWinner({
-                          data: {
-                            national_final_id:
-                              nf.id,
-
-                            entry_id:
-                              nf.winning_entry_id ===
-                              entry.id
-                                ? null
-                                : entry.id,
-                          },
-                        });
-
-                        qc.invalidateQueries(
+                            entry.removed
+                              ? "line-through opacity-70"
+                              : "",
+                          )}
+                        >
                           {
-                            queryKey:
-                              [
-                                "submission",
-                                id,
-                              ],
-                          },
-                        );
-                      }}
-                    >
-                      {nf.winning_entry_id ===
-                      entry.id
-                        ? "Winner"
-                        : "Mark winner"}
-                    </Button>
-                  </li>
+                            entry.artist
+                          }
+                          {" — "}
+                          {
+                            entry.song_title
+                          }
+                        </p>
+
+                        {entry.song_url ? (
+                          <a
+                            href={
+                              entry.song_url
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-block text-xs text-accent underline"
+                          >
+                            Open song
+                          </a>
+                        ) : null}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ReviewBadge
+                          status={
+                            entry.removed
+                              ? "removed"
+                              : entry.review_status ??
+                                "pending"
+                          }
+                        />
+
+                        {nf.winning_entry_id ===
+                        entry.id ? (
+                          <span className="rounded-full bg-accent/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-accent">
+                            Winner
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {entry.review_reason ? (
+                      <div className="mt-3 rounded-lg border border-border/60 bg-background/20 p-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                          Current
+                          public
+                          reason
+                        </p>
+
+                        <p className="mt-1 text-sm">
+                          {
+                            entry.review_reason
+                          }
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {entry.removed ? (
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-destructive">
+                        Removed from
+                        participant's
+                        National Final
+                      </p>
+                    ) : null}
+
+                    <div className="mt-4 space-y-2 border-t border-border/60 pt-4">
+                      <Label>
+                        Reason for
+                        this admin
+                        action *
+                      </Label>
+
+                      <Textarea
+                        value={
+                          nfReasons[
+                            entry.id
+                          ] ??
+                          ""
+                        }
+                        placeholder="Required. The participant will see this reason."
+                        onChange={(
+                          event,
+                        ) =>
+                          setNfReasons(
+                            (
+                              current,
+                            ) => ({
+                              ...current,
+
+                              [entry.id]:
+                                event
+                                  .target
+                                  .value,
+                            }),
+                          )
+                        }
+                      />
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            void doNfReview(
+                              entry.id,
+                              "accepted",
+                            )
+                          }
+                        >
+                          Accept
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() =>
+                            void doNfReview(
+                              entry.id,
+                              "declined",
+                            )
+                          }
+                        >
+                          Decline
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() =>
+                            void doNfReview(
+                              entry.id,
+                              "removed",
+                            )
+                          }
+                        >
+                          Remove from
+                          NF
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            void doNfReview(
+                              entry.id,
+                              "pending",
+                            )
+                          }
+                        >
+                          Reset pending
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant={
+                            nf.winning_entry_id ===
+                            entry.id
+                              ? "default"
+                              : "outline"
+                          }
+                          disabled={
+                            entry.removed
+                          }
+                          onClick={() =>
+                            void changeWinner(
+                              entry.id,
+                            )
+                          }
+                        >
+                          {nf.winning_entry_id ===
+                          entry.id
+                            ? "Clear winner"
+                            : "Mark winner"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 ),
               )}
 
-              {nf
-                .national_final_entries
-                .length ===
+              {nf.national_final_entries.length ===
               0 ? (
-                <li className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Entries not
                   submitted yet.
-                </li>
+                </p>
               ) : null}
-            </ul>
+            </div>
           </section>
         ) : null}
 
-        {/* Release */}
+        {/* RELEASE */}
 
         <section className="surface p-5">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Release &amp; embargo
+            Release &amp;
+            embargo
           </h2>
 
           <Row
             label="Reveal date"
-            value={describeDate(
-              submission.reveal_date_type,
-              submission.reveal_exact_date,
-              submission.reveal_approximate_text,
-            )}
+            value={
+              describeDate(
+                submission.reveal_date_type,
+                submission.reveal_exact_date,
+                submission.reveal_approximate_text,
+              )
+            }
           />
 
           <Row
@@ -532,13 +1126,15 @@ function ResponseDetail() {
 
           <Row
             label="Last update"
-            value={new Date(
-              submission.updated_at,
-            ).toLocaleString()}
+            value={
+              new Date(
+                submission.updated_at,
+              ).toLocaleString()
+            }
           />
         </section>
 
-        {/* Admin Controls */}
+        {/* ADMIN CONTROLS */}
 
         <section className="surface space-y-4 p-5">
           <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
@@ -546,30 +1142,10 @@ function ResponseDetail() {
           </h2>
 
           <div className="flex items-center justify-between">
-            <Label htmlFor="reviewed">
-              Reviewed
-            </Label>
-
-            <Switch
-              id="reviewed"
-              checked={
-                submission.reviewed
-              }
-              onCheckedChange={(
-                value,
-              ) =>
-                flags({
-                  reviewed:
-                    value,
-                })
-              }
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
             <Label htmlFor="editing">
-              Allow participant
-              to edit
+              Allow
+              participant to
+              edit
             </Label>
 
             <Switch
@@ -580,7 +1156,7 @@ function ResponseDetail() {
               onCheckedChange={(
                 value,
               ) =>
-                flags({
+                void flags({
                   editing_allowed:
                     value,
                 })
@@ -601,7 +1177,7 @@ function ResponseDetail() {
               onCheckedChange={(
                 value,
               ) =>
-                flags({
+                void flags({
                   locked:
                     value,
                 })
@@ -616,10 +1192,14 @@ function ResponseDetail() {
 
             <Textarea
               id="notes"
-              value={notes}
-              onChange={(e) =>
+              value={
+                notes
+              }
+              onChange={(
+                event,
+              ) =>
                 setNotes(
-                  e.target
+                  event.target
                     .value,
                 )
               }
@@ -643,7 +1223,74 @@ function ResponseDetail() {
           </div>
         </section>
 
-        {/* Edit Link Controls */}
+        {/* MODERATION HISTORY */}
+
+        <section className="surface p-5 lg:col-span-2">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Entry moderation
+            history
+          </h2>
+
+          <div className="mt-4 space-y-2">
+            {(
+              reviewHistory ??
+              []
+            ).map(
+              (
+                item: any,
+              ) => (
+                <div
+                  key={
+                    item.id
+                  }
+                  className="rounded-xl border border-border bg-secondary/20 p-3"
+                >
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      {item.artist_snapshot
+                        ? `${item.artist_snapshot} — ${item.song_title_snapshot ?? ""}`
+                        : "Entry"}
+                    </p>
+
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      {String(
+                        item.action,
+                      ).replace(
+                        "_",
+                        " ",
+                      )}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-sm">
+                    {
+                      item.reason
+                    }
+                  </p>
+
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    {new Date(
+                      item.created_at,
+                    ).toLocaleString()}
+                  </p>
+                </div>
+              ),
+            )}
+
+            {(
+              reviewHistory ??
+              []
+            ).length ===
+            0 ? (
+              <p className="text-xs text-muted-foreground">
+                No moderation
+                actions yet.
+              </p>
+            ) : null}
+          </div>
+        </section>
+
+        {/* EDIT ACCESS */}
 
         <section className="surface space-y-4 p-5">
           <div>
@@ -652,11 +1299,9 @@ function ResponseDetail() {
             </h2>
 
             <p className="mt-1 text-xs text-muted-foreground">
-              Generate a private
-              link that lets this
-              participant edit
-              their existing
-              response.
+              Generate a
+              private edit
+              link.
             </p>
           </div>
 
@@ -700,22 +1345,21 @@ function ResponseDetail() {
             onClick={async () => {
               try {
                 const result =
-                  await generateEditLink(
-                    {
-                      data: {
-                        submission_id:
-                          id,
+                  await generateEditLink({
+                    data: {
+                      submission_id:
+                        id,
 
-                        token_type:
-                          linkType,
+                      token_type:
+                        linkType,
 
-                        expires_in_hours:
-                          null,
-                      },
+                      expires_in_hours:
+                        null,
                     },
-                  );
+                  });
 
-                const url = `${window.location.origin}/edit/${result.token}`;
+                const url =
+                  `${window.location.origin}/edit/${result.token}`;
 
                 setGeneratedLink(
                   url,
@@ -729,15 +1373,12 @@ function ResponseDetail() {
                   "Edit link generated and copied",
                 );
 
-                qc.invalidateQueries(
-                  {
-                    queryKey:
-                      [
-                        "submission-technical",
-                        id,
-                      ],
-                  },
-                );
+                void qc.invalidateQueries({
+                  queryKey: [
+                    "submission-technical",
+                    id,
+                  ],
+                });
               } catch {
                 toast.error(
                   "Could not generate edit link",
@@ -746,16 +1387,20 @@ function ResponseDetail() {
             }}
           >
             <Link2 className="mr-2 size-4" />
-            Generate edit link
+
+            Generate edit
+            link
           </Button>
 
           {generatedLink ? (
             <div className="space-y-2 rounded-lg border border-border p-3">
               <p className="break-all text-xs text-muted-foreground">
-                {generatedLink}
+                {
+                  generatedLink
+                }
               </p>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-2">
                 <Button
                   size="sm"
                   variant="outline"
@@ -765,26 +1410,28 @@ function ResponseDetail() {
                     );
 
                     toast.success(
-                      "Edit link copied",
+                      "Copied",
                     );
                   }}
                 >
                   <Copy className="mr-2 size-3.5" />
+
                   Copy
                 </Button>
 
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => {
+                  onClick={() =>
                     window.open(
                       generatedLink,
                       "_blank",
                       "noopener,noreferrer",
-                    );
-                  }}
+                    )
+                  }
                 >
                   <ExternalLink className="mr-2 size-3.5" />
+
                   Open
                 </Button>
               </div>
@@ -796,7 +1443,9 @@ function ResponseDetail() {
               technical?.tokens ??
               []
             ).map(
-              (token) => (
+              (
+                token,
+              ) => (
                 <div
                   key={
                     token.id
@@ -815,12 +1464,12 @@ function ResponseDetail() {
                       <p className="text-xs text-muted-foreground">
                         {token.active
                           ? "Active"
-                          : "Revoked"}{" "}
-                        · Used{" "}
+                          : "Revoked"}
+                        {" · Used "}
                         {
                           token.use_count
-                        }{" "}
-                        time
+                        }
+                        {" time"}
                         {token.use_count ===
                         1
                           ? ""
@@ -833,80 +1482,38 @@ function ResponseDetail() {
                         size="sm"
                         variant="destructive"
                         onClick={async () => {
-                          await revokeLink(
-                            {
-                              data: {
-                                id: token.id,
-                              },
+                          await revokeLink({
+                            data: {
+                              id:
+                                token.id,
                             },
-                          );
+                          });
 
                           toast.success(
                             "Edit link revoked",
                           );
 
-                          qc.invalidateQueries(
-                            {
-                              queryKey:
-                                [
-                                  "submission-technical",
-                                  id,
-                                ],
-                            },
-                          );
+                          void qc.invalidateQueries({
+                            queryKey: [
+                              "submission-technical",
+                              id,
+                            ],
+                          });
                         }}
                       >
                         <Trash2 className="mr-2 size-3.5" />
+
                         Revoke
                       </Button>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    <p>
-                      Created:{" "}
-                      {new Date(
-                        token.created_at,
-                      ).toLocaleString()}
-                    </p>
-
-                    {token.last_used_at ? (
-                      <p>
-                        Last used:{" "}
-                        {new Date(
-                          token.last_used_at,
-                        ).toLocaleString()}
-                      </p>
-                    ) : null}
-
-                    {token.expires_at ? (
-                      <p>
-                        Expires:{" "}
-                        {new Date(
-                          token.expires_at,
-                        ).toLocaleString()}
-                      </p>
                     ) : null}
                   </div>
                 </div>
               ),
             )}
-
-            {(
-              technical?.tokens ??
-              []
-            ).length ===
-            0 ? (
-              <p className="text-xs text-muted-foreground">
-                No edit links
-                have been
-                generated.
-              </p>
-            ) : null}
           </div>
         </section>
 
-        {/* Technical Info */}
+        {/* TECHNICAL */}
 
         <section className="surface p-5">
           <div className="mb-4 flex items-center gap-2">
@@ -952,48 +1559,18 @@ function ResponseDetail() {
             value={
               technical
                 ?.ip_history
-                ?.length ?? 0
+                ?.length ??
+              0
             }
           />
-
-          <div className="mt-4 space-y-2">
-            {(
-              technical?.ip_history ??
-              []
-            ).map((ip) => (
-              <div
-                key={ip.id}
-                className="rounded-lg border border-border px-3 py-2 text-xs"
-              >
-                <p className="font-medium">
-                  {
-                    ip.ip_address
-                  }
-                </p>
-
-                <p className="mt-1 text-muted-foreground">
-                  First seen:{" "}
-                  {new Date(
-                    ip.first_seen_at,
-                  ).toLocaleString()}
-                </p>
-
-                <p className="text-muted-foreground">
-                  Last seen:{" "}
-                  {new Date(
-                    ip.last_seen_at,
-                  ).toLocaleString()}
-                </p>
-              </div>
-            ))}
-          </div>
         </section>
 
-        {/* Edit History */}
+        {/* EDIT HISTORY */}
 
-        <section className="surface p-5">
+        <section className="surface p-5 lg:col-span-2">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Edit history
+            Participant edit
+            history
           </h2>
 
           <ul className="space-y-2 text-sm">
@@ -1001,16 +1578,23 @@ function ResponseDetail() {
               data?.versions ??
               []
             ).map(
-              (version: {
-                id: string;
-                version: number;
-                created_at: string;
-              }) => (
+              (
+                version: {
+                  id:
+                    string;
+
+                  version:
+                    number;
+
+                  created_at:
+                    string;
+                },
+              ) => (
                 <li
                   key={
                     version.id
                   }
-                  className="flex justify-between text-muted-foreground"
+                  className="flex justify-between gap-3 text-muted-foreground"
                 >
                   <span>
                     Version{" "}
