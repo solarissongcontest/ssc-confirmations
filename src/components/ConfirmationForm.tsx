@@ -1644,7 +1644,7 @@ export function ConfirmationForm({
       }
 
       if (
-        duplicateChecks.internal ===
+        duplicateChecks["internal"] ===
         "song"
       ) {
         next.song_title =
@@ -1654,7 +1654,7 @@ export function ConfirmationForm({
       }
 
       if (
-        duplicateChecks.internal ===
+        duplicateChecks["internal"] ===
         "artist"
       ) {
         next.artist =

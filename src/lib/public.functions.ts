@@ -897,15 +897,15 @@ export const saveDraft =
               parsed,
 
             _instagram_username:
-              typeof form.instagram_username ===
+              typeof form["instagram_username"] ===
               "string"
-                ? form.instagram_username
+                ? form["instagram_username"]
                 : "",
 
             _country:
-              typeof form.country ===
+              typeof form["country"] ===
               "string"
-                ? form.country
+                ? form["country"]
                 : "",
 
             _ip:
