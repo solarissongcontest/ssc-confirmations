@@ -40,7 +40,6 @@ import {
   deleteSubmission,
   getSubmission,
   getSubmissionTechnical,
-  revokeEditLink,
   updateSubmissionFlags,
 } from "@/lib/admin.functions";
 
@@ -52,7 +51,6 @@ import {
 } from "@/lib/review.functions";
 
 import {
-  describeDate,
   statusOf,
   winningNfEntry,
   type AdminSubmission,
@@ -91,11 +89,8 @@ function Row({
   label,
   value,
 }: {
-  label:
-    string;
-
-  value:
-    ReactNode;
+  label: string;
+  value: ReactNode;
 }) {
   return (
     <div className="flex flex-wrap justify-between gap-2 border-b border-border/60 py-2 text-sm last:border-0">
@@ -113,8 +108,7 @@ function Row({
 function ReviewBadge({
   status,
 }: {
-  status:
-    EntryReviewStatus;
+  status: EntryReviewStatus;
 }) {
   const bad =
     status ===
@@ -177,22 +171,22 @@ function ResponseDetail() {
       createEditLink,
     );
 
-  const revokeLink =
-    useServerFn(
-      revokeEditLink,
-    );
-
-  const reviewInternal =
+  /*
+   * IMPORTANT:
+   * These names end with "Action" so they do not collide
+   * with our local handler functions below.
+   */
+  const reviewInternalAction =
     useServerFn(
       reviewInternalEntry,
     );
 
-  const reviewNf =
+  const reviewNfAction =
     useServerFn(
       reviewNationalFinalEntry,
     );
 
-  const setWinner =
+  const setWinnerAction =
     useServerFn(
       setWinningEntryWithReason,
     );
@@ -381,7 +375,7 @@ function ResponseDetail() {
     refresh();
   }
 
-  async function reviewInternal(
+  async function handleInternalReview(
     status:
       | "pending"
       | "accepted"
@@ -406,25 +400,46 @@ function ResponseDetail() {
       return;
     }
 
-    await reviewInternal({
-      data: {
-        entry_id:
-          internal.id,
+    try {
+      await reviewInternalAction({
+        data: {
+          entry_id:
+            internal.id,
 
-        status,
+          status,
 
-        reason,
-      },
-    });
+          reason,
+        },
+      });
 
-    setInternalReason(
-      "",
-    );
+      setInternalReason(
+        "",
+      );
 
-    refresh();
+      refresh();
+
+      toast.success(
+        status ===
+          "accepted"
+          ? "Entry accepted"
+          : status ===
+              "declined"
+            ? "Entry declined"
+            : "Entry reset to pending",
+      );
+    } catch (
+      error
+    ) {
+      toast.error(
+        error instanceof
+          Error
+          ? error.message
+          : "Could not update the entry review.",
+      );
+    }
   }
 
-  async function reviewNfEntry(
+  async function handleNfReview(
     entryId:
       string,
 
@@ -452,32 +467,56 @@ function ResponseDetail() {
       return;
     }
 
-    await reviewNf({
-      data: {
-        entry_id:
-          entryId,
+    try {
+      await reviewNfAction({
+        data: {
+          entry_id:
+            entryId,
 
-        status,
+          status,
 
-        reason,
-      },
-    });
+          reason,
+        },
+      });
 
-    setNfReasons(
-      (
-        current,
-      ) => ({
-        ...current,
+      setNfReasons(
+        (
+          current,
+        ) => ({
+          ...current,
 
-        [entryId]:
-          "",
-      }),
-    );
+          [entryId]:
+            "",
+        }),
+      );
 
-    refresh();
+      refresh();
+
+      toast.success(
+        status ===
+          "removed"
+          ? "NF entry removed"
+          : status ===
+              "accepted"
+            ? "Entry accepted"
+            : status ===
+                "declined"
+              ? "Entry declined"
+              : "Entry reset to pending",
+      );
+    } catch (
+      error
+    ) {
+      toast.error(
+        error instanceof
+          Error
+          ? error.message
+          : "Could not update the NF entry.",
+      );
+    }
   }
 
-  async function changeWinner(
+  async function handleWinnerChange(
     entryId:
       string,
   ) {
@@ -499,7 +538,7 @@ function ResponseDetail() {
       !reason
     ) {
       toast.error(
-        "A reason is required.",
+        "A reason is required to change the winner.",
       );
 
       return;
@@ -509,64 +548,83 @@ function ResponseDetail() {
       nf.winning_entry_id ===
       entryId;
 
-    await setWinner({
-      data: {
-        national_final_id:
-          nf.id,
+    try {
+      await setWinnerAction({
+        data: {
+          national_final_id:
+            nf.id,
 
-        entry_id:
-          clearing
-            ? null
-            : entryId,
+          entry_id:
+            clearing
+              ? null
+              : entryId,
 
-        reason,
-      },
-    });
+          reason,
+        },
+      });
 
-    setNfReasons(
-      (
-        current,
-      ) => ({
-        ...current,
+      setNfReasons(
+        (
+          current,
+        ) => ({
+          ...current,
 
-        [entryId]:
-          "",
-      }),
-    );
+          [entryId]:
+            "",
+        }),
+      );
 
-    refresh();
+      refresh();
+
+      toast.success(
+        clearing
+          ? "Winner cleared"
+          : "NF winner updated",
+      );
+    } catch (
+      error
+    ) {
+      toast.error(
+        error instanceof
+          Error
+          ? error.message
+          : "Could not update the NF winner.",
+      );
+    }
   }
 
   return (
     <div className="space-y-6">
       <Link
         to="/admin/responses"
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
 
         Back to responses
       </Link>
 
-      <header>
-        <h1 className="text-2xl font-semibold">
-          {
-            submission.country
-          }
-        </h1>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">
+            {
+              submission.country
+            }
+          </h1>
 
-        <p className="text-sm text-muted-foreground">
-          @
-          {
-            submission.instagram_username
-          }
-          {" · "}
-          {
-            statusOf(
-              submission,
-            )
-          }
-        </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            @
+            {
+              submission.instagram_username
+            }
+            {" · "}
+            {
+              statusOf(
+                submission,
+              )
+            }
+          </p>
+        </div>
       </header>
 
       {/* ======================================================
@@ -586,6 +644,30 @@ function ResponseDetail() {
         />
 
         <Row
+          label="Instagram"
+          value={`@${submission.instagram_username}`}
+        />
+
+        <Row
+          label="Country account"
+          value={
+            submission.has_country_account
+              ? submission.country_account ??
+                "Yes"
+              : "No"
+          }
+        />
+
+        <Row
+          label="Participating"
+          value={
+            submission.participating
+              ? "Yes"
+              : "No"
+          }
+        />
+
+        <Row
           label="Selection method"
           value={
             submission.selection_method ===
@@ -597,22 +679,68 @@ function ResponseDetail() {
                 : "Unknown"
           }
         />
+
+        <Row
+          label="Submitted"
+          value={
+            new Date(
+              submission.submitted_at,
+            ).toLocaleString()
+          }
+        />
+
+        <Row
+          label="Last updated"
+          value={
+            new Date(
+              submission.updated_at,
+            ).toLocaleString()
+          }
+        />
       </section>
 
       {/* ======================================================
-       * INTERNAL
+       * INTERNAL SELECTION
        * ==================================================== */}
 
       {internal ? (
-        <section className="surface space-y-4 p-5">
-          <div className="flex justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Internal entry
-            </h2>
+        <section
+          className={cn(
+            "surface space-y-4 p-5",
+
+            internal.review_status ===
+              "accepted"
+              ? "border border-success/35"
+              : internal.review_status ===
+                  "declined"
+                ? "border border-destructive/50"
+                : "",
+          )}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                Internal
+                selection
+              </p>
+
+              <h2 className="mt-1 text-lg font-semibold">
+                {
+                  internal.artist ??
+                  "Unknown artist"
+                }
+                {" — "}
+                {
+                  internal.song_title ??
+                  "Unknown song"
+                }
+              </h2>
+            </div>
 
             <ReviewBadge
               status={
-                internal.review_status
+                internal.review_status ??
+                "pending"
               }
             />
           </div>
@@ -634,11 +762,31 @@ function ResponseDetail() {
           />
 
           <Row
+            label="Song link"
+            value={
+              internal.song_url ? (
+                <a
+                  href={
+                    internal.song_url
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent underline"
+                >
+                  Open
+                </a>
+              ) : (
+                "—"
+              )
+            }
+          />
+
+          <Row
             label="25s preview"
             value={
               internal.preview_start
-                ? `${internal.preview_start} – ${internal.preview_end}`
-                : "—"
+                ? `${internal.preview_start} – ${internal.preview_end ?? "—"}`
+                : "Not submitted"
             }
           />
 
@@ -646,53 +794,122 @@ function ResponseDetail() {
             label="90s final clip"
             value={
               internal.final_clip_start
-                ? `${internal.final_clip_start} – ${internal.final_clip_end}`
-                : "—"
+                ? `${internal.final_clip_start} – ${internal.final_clip_end ?? "—"}`
+                : "Not submitted"
             }
           />
 
-          <Textarea
-            placeholder="Required public reason"
+          <Row
+            label="Replacement video"
             value={
-              internalReason
-            }
-            onChange={(
-              event,
-            ) =>
-              setInternalReason(
-                event.target
-                  .value,
-              )
+              internal.replacement_video_required
+                ? internal.replacement_video_url ? (
+                    <a
+                      href={
+                        internal.replacement_video_url
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-accent underline"
+                    >
+                      Open replacement
+                      video
+                    </a>
+                  ) : (
+                    "Required, URL missing"
+                  )
+                : "Not needed"
             }
           />
 
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() =>
-                void reviewInternal(
-                  "accepted",
+          {internal.review_reason ? (
+            <div
+              className={cn(
+                "rounded-xl border p-4",
+
+                internal.review_status ===
+                  "declined"
+                  ? "border-destructive/40 bg-destructive/10"
+                  : internal.review_status ===
+                      "accepted"
+                    ? "border-success/30 bg-success/10"
+                    : "border-border bg-secondary/20",
+              )}
+            >
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                Current public
+                reason
+              </p>
+
+              <p className="mt-2 text-sm">
+                {
+                  internal.review_reason
+                }
+              </p>
+            </div>
+          ) : null}
+
+          <div className="space-y-3 border-t border-border/60 pt-4">
+            <Label>
+              Reason for admin
+              action *
+            </Label>
+
+            <Textarea
+              value={
+                internalReason
+              }
+              placeholder="Required. This reason will be visible to the participant."
+              onChange={(
+                event,
+              ) =>
+                setInternalReason(
+                  event.target
+                    .value,
                 )
               }
-            >
-              <CheckCircle2 className="size-4" />
+            />
 
-              Accept
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={() =>
+                  void handleInternalReview(
+                    "accepted",
+                  )
+                }
+              >
+                <CheckCircle2 className="size-4" />
 
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() =>
-                void reviewInternal(
-                  "declined",
-                )
-              }
-            >
-              <XCircle className="size-4" />
+                Accept
+              </Button>
 
-              Decline
-            </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() =>
+                  void handleInternalReview(
+                    "declined",
+                  )
+                }
+              >
+                <XCircle className="size-4" />
+
+                Decline
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  void handleInternalReview(
+                    "pending",
+                  )
+                }
+              >
+                Reset pending
+              </Button>
+            </div>
           </div>
         </section>
       ) : null}
@@ -714,27 +931,46 @@ function ResponseDetail() {
                 "Unnamed National Final"
               }
             </h2>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              {
+                nf.national_final_entries.filter(
+                  (
+                    entry,
+                  ) =>
+                    !entry.removed,
+                ).length
+              }{" "}
+              active entries
+            </p>
           </div>
+
+          {/* NF WINNER */}
 
           {winner ? (
             <div className="rounded-xl border-2 border-accent/50 bg-accent/10 p-5">
-              <div className="flex items-center gap-2">
-                <Trophy className="size-5 text-accent" />
+              <div className="flex items-start gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+                  <Trophy className="size-5" />
+                </div>
 
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-accent">
-                    NF Winner
+                    National Final
+                    winner
                   </p>
 
-                  <p className="font-semibold">
+                  <h3 className="mt-1 text-lg font-semibold">
                     {
-                      winner.artist
+                      winner.artist ??
+                      "Unknown artist"
                     }
                     {" — "}
                     {
-                      winner.song_title
+                      winner.song_title ??
+                      "Unknown song"
                     }
-                  </p>
+                  </h3>
                 </div>
               </div>
 
@@ -751,7 +987,7 @@ function ResponseDetail() {
                         rel="noreferrer"
                         className="text-accent underline"
                       >
-                        Open
+                        Open song
                       </a>
                     ) : (
                       "—"
@@ -763,7 +999,7 @@ function ResponseDetail() {
                   label="25s preview"
                   value={
                     winner.preview_start
-                      ? `${winner.preview_start} – ${winner.preview_end}`
+                      ? `${winner.preview_start} – ${winner.preview_end ?? "—"}`
                       : "Not submitted"
                   }
                 />
@@ -772,7 +1008,7 @@ function ResponseDetail() {
                   label="90s final clip"
                   value={
                     winner.final_clip_start
-                      ? `${winner.final_clip_start} – ${winner.final_clip_end}`
+                      ? `${winner.final_clip_start} – ${winner.final_clip_end ?? "—"}`
                       : "Not submitted"
                   }
                 />
@@ -781,198 +1017,341 @@ function ResponseDetail() {
                   label="Replacement video"
                   value={
                     winner.replacement_video_required
-                      ? winner.replacement_video_url ??
-                        "Required, URL missing"
+                      ? winner.replacement_video_url ? (
+                          <a
+                            href={
+                              winner.replacement_video_url
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-accent underline"
+                          >
+                            Open replacement
+                            video
+                          </a>
+                        ) : (
+                          "Required, URL missing"
+                        )
                       : "Not needed"
                   }
                 />
               </div>
 
               <p className="mt-3 text-xs text-muted-foreground">
-                This entry is
-                stored as the
-                National Final
-                winner. It is not
-                an internal
-                selection.
+                This is stored as
+                the National Final
+                winner. The
+                selection method
+                remains National
+                Final.
               </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
-              National Final
-              winner not known
-              yet.
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-4">
+              <p className="text-sm font-medium">
+                National Final
+                winner not known
+                yet
+              </p>
+
+              <p className="mt-1 text-xs text-muted-foreground">
+                The delegation has
+                not selected a
+                winning NF entry
+                yet.
+              </p>
             </div>
           )}
+
+          {/* NF ENTRIES */}
 
           <div className="space-y-3">
             {nf.national_final_entries.map(
               (
                 entry,
-              ) => (
-                <div
-                  key={
-                    entry.id
-                  }
-                  className={cn(
-                    "rounded-xl border p-4",
+              ) => {
+                const isWinner =
+                  nf.winning_entry_id ===
+                  entry.id;
 
-                    entry.removed
-                      ? "border-destructive/50 bg-destructive/10"
-                      : nf.winning_entry_id ===
-                          entry.id
-                        ? "border-accent/50 bg-accent/10"
-                        : "border-border bg-secondary/20",
-                  )}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p
-                        className={cn(
-                          "font-medium",
+                const reviewStatus:
+                  EntryReviewStatus =
+                  entry.removed
+                    ? "removed"
+                    : entry.review_status ??
+                      "pending";
 
-                          entry.removed
-                            ? "line-through"
-                            : "",
-                        )}
-                      >
-                        {
-                          entry.artist
-                        }
-                        {" — "}
-                        {
-                          entry.song_title
-                        }
-                      </p>
+                return (
+                  <div
+                    key={
+                      entry.id
+                    }
+                    className={cn(
+                      "rounded-xl border p-4",
 
-                      {entry.song_url ? (
-                        <a
-                          href={
-                            entry.song_url
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-accent underline"
+                      entry.removed ||
+                      reviewStatus ===
+                        "declined"
+                        ? "border-destructive/50 bg-destructive/10"
+                        : isWinner
+                          ? "border-accent/50 bg-accent/10"
+                          : reviewStatus ===
+                              "accepted"
+                            ? "border-success/30 bg-success/5"
+                            : "border-border bg-secondary/20",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p
+                          className={cn(
+                            "font-medium",
+
+                            entry.removed
+                              ? "line-through opacity-70"
+                              : "",
+                          )}
                         >
-                          Open song
-                        </a>
-                      ) : null}
+                          {
+                            entry.artist ??
+                            "Unknown artist"
+                          }
+                          {" — "}
+                          {
+                            entry.song_title ??
+                            "Unknown song"
+                          }
+                        </p>
+
+                        {entry.song_url ? (
+                          <a
+                            href={
+                              entry.song_url
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-block text-xs text-accent underline"
+                          >
+                            Open song
+                          </a>
+                        ) : null}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ReviewBadge
+                          status={
+                            reviewStatus
+                          }
+                        />
+
+                        {isWinner ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-accent">
+                            <Trophy className="size-3" />
+
+                            Winner
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
 
-                    <div className="flex gap-2">
-                      <ReviewBadge
-                        status={
-                          entry.removed
-                            ? "removed"
-                            : entry.review_status
+                    {isWinner ? (
+                      <div className="mt-4 rounded-lg border border-accent/25 bg-background/20 p-3">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-accent">
+                          Winner technical
+                          details
+                        </p>
+
+                        <Row
+                          label="25s preview"
+                          value={
+                            entry.preview_start
+                              ? `${entry.preview_start} – ${entry.preview_end ?? "—"}`
+                              : "Not submitted"
+                          }
+                        />
+
+                        <Row
+                          label="90s final clip"
+                          value={
+                            entry.final_clip_start
+                              ? `${entry.final_clip_start} – ${entry.final_clip_end ?? "—"}`
+                              : "Not submitted"
+                          }
+                        />
+
+                        <Row
+                          label="Replacement video"
+                          value={
+                            entry.replacement_video_required
+                              ? entry.replacement_video_url ??
+                                "Required, URL missing"
+                              : "Not needed"
+                          }
+                        />
+                      </div>
+                    ) : null}
+
+                    {entry.review_reason ? (
+                      <div
+                        className={cn(
+                          "mt-3 rounded-lg border p-3",
+
+                          reviewStatus ===
+                              "declined" ||
+                            reviewStatus ===
+                              "removed"
+                            ? "border-destructive/40 bg-destructive/10"
+                            : reviewStatus ===
+                                "accepted"
+                              ? "border-success/30 bg-success/10"
+                              : "border-border bg-background/20",
+                        )}
+                      >
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                          Current public
+                          reason
+                        </p>
+
+                        <p className="mt-1 text-sm">
+                          {
+                            entry.review_reason
+                          }
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {entry.removed ? (
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-destructive">
+                        Removed from the
+                        participant's
+                        National Final
+                      </p>
+                    ) : null}
+
+                    <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
+                      <Label>
+                        Reason for admin
+                        action *
+                      </Label>
+
+                      <Textarea
+                        value={
+                          nfReasons[
+                            entry.id
+                          ] ??
+                          ""
+                        }
+                        placeholder="Required. This reason will be visible to the participant."
+                        onChange={(
+                          event,
+                        ) =>
+                          setNfReasons(
+                            (
+                              current,
+                            ) => ({
+                              ...current,
+
+                              [entry.id]:
+                                event.target
+                                  .value,
+                            }),
+                          )
                         }
                       />
 
-                      {nf.winning_entry_id ===
-                      entry.id ? (
-                        <span className="rounded-full bg-accent/15 px-2 py-1 text-[10px] font-semibold uppercase text-accent">
-                          Winner
-                        </span>
-                      ) : null}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            void handleNfReview(
+                              entry.id,
+                              "accepted",
+                            )
+                          }
+                        >
+                          <CheckCircle2 className="size-4" />
+
+                          Accept
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() =>
+                            void handleNfReview(
+                              entry.id,
+                              "declined",
+                            )
+                          }
+                        >
+                          <XCircle className="size-4" />
+
+                          Decline
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() =>
+                            void handleNfReview(
+                              entry.id,
+                              "removed",
+                            )
+                          }
+                        >
+                          Remove from NF
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            void handleNfReview(
+                              entry.id,
+                              "pending",
+                            )
+                          }
+                        >
+                          Reset pending
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant={
+                            isWinner
+                              ? "default"
+                              : "outline"
+                          }
+                          disabled={
+                            entry.removed
+                          }
+                          onClick={() =>
+                            void handleWinnerChange(
+                              entry.id,
+                            )
+                          }
+                        >
+                          <Trophy className="size-4" />
+
+                          {isWinner
+                            ? "Clear winner"
+                            : "Mark winner"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-
-                  {entry.review_reason ? (
-                    <p className="mt-3 text-sm">
-                      {
-                        entry.review_reason
-                      }
-                    </p>
-                  ) : null}
-
-                  <Textarea
-                    className="mt-4"
-                    placeholder="Required public reason"
-                    value={
-                      nfReasons[
-                        entry.id
-                      ] ??
-                      ""
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setNfReasons(
-                        (
-                          current,
-                        ) => ({
-                          ...current,
-
-                          [entry.id]:
-                            event.target
-                              .value,
-                        }),
-                      )
-                    }
-                  />
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        void reviewNfEntry(
-                          entry.id,
-                          "accepted",
-                        )
-                      }
-                    >
-                      Accept
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() =>
-                        void reviewNfEntry(
-                          entry.id,
-                          "declined",
-                        )
-                      }
-                    >
-                      Decline
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() =>
-                        void reviewNfEntry(
-                          entry.id,
-                          "removed",
-                        )
-                      }
-                    >
-                      Remove
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={
-                        entry.removed
-                      }
-                      onClick={() =>
-                        void changeWinner(
-                          entry.id,
-                        )
-                      }
-                    >
-                      <Trophy className="size-4" />
-
-                      {nf.winning_entry_id ===
-                      entry.id
-                        ? "Clear winner"
-                        : "Mark winner"}
-                    </Button>
-                  </div>
-                </div>
-              ),
+                );
+              },
             )}
+
+            {nf.national_final_entries.length ===
+            0 ? (
+              <p className="text-sm text-muted-foreground">
+                No National Final
+                entries submitted
+                yet.
+              </p>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -981,18 +1360,26 @@ function ResponseDetail() {
        * ADMIN CONTROLS
        * ==================================================== */}
 
-      <section className="surface space-y-4 p-5">
+      <section className="surface space-y-5 p-5">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Admin controls
         </h2>
 
-        <div className="flex items-center justify-between">
-          <Label>
-            Allow participant
-            to edit
-          </Label>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <Label htmlFor="allow-editing">
+              Allow participant to
+              edit
+            </Label>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              Individual response
+              editing permission.
+            </p>
+          </div>
 
           <Switch
+            id="allow-editing"
             checked={
               submission.editing_allowed
             }
@@ -1007,12 +1394,20 @@ function ResponseDetail() {
           />
         </div>
 
-        <div className="flex items-center justify-between">
-          <Label>
-            Locked
-          </Label>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <Label htmlFor="locked">
+              Lock response
+            </Label>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              A locked response
+              cannot be edited.
+            </p>
+          </div>
 
           <Switch
+            id="locked"
             checked={
               submission.locked
             }
@@ -1027,49 +1422,70 @@ function ResponseDetail() {
           />
         </div>
 
-        <Label>
-          Internal admin notes
-        </Label>
+        <div className="space-y-2 border-t border-border/60 pt-4">
+          <Label>
+            Internal admin notes
+          </Label>
 
-        <Textarea
-          value={
-            notes
-          }
-          onChange={(
-            event,
-          ) =>
-            setNotes(
-              event.target
-                .value,
-            )
-          }
-        />
+          <Textarea
+            value={
+              notes
+            }
+            onChange={(
+              event,
+            ) =>
+              setNotes(
+                event.target
+                  .value,
+              )
+            }
+            placeholder="Only admins can see these notes."
+          />
 
-        <Button
-          size="sm"
-          onClick={async () => {
-            await flags({
-              admin_notes:
-                notes,
-            });
+          <Button
+            size="sm"
+            onClick={async () => {
+              try {
+                await flags({
+                  admin_notes:
+                    notes,
+                });
 
-            toast.success(
-              "Notes saved",
-            );
-          }}
-        >
-          Save notes
-        </Button>
+                toast.success(
+                  "Notes saved",
+                );
+              } catch (
+                error
+              ) {
+                toast.error(
+                  error instanceof
+                    Error
+                    ? error.message
+                    : "Could not save notes.",
+                );
+              }
+            }}
+          >
+            Save notes
+          </Button>
+        </div>
       </section>
 
       {/* ======================================================
-       * EDIT LINK
+       * EDIT ACCESS
        * ==================================================== */}
 
       <section className="surface space-y-4 p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Edit access
-        </h2>
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Edit access
+          </h2>
+
+          <p className="mt-1 text-xs text-muted-foreground">
+            Generate a private
+            participant edit link.
+          </p>
+        </div>
 
         <div className="flex gap-2">
           <Button
@@ -1109,34 +1525,45 @@ function ResponseDetail() {
 
         <Button
           onClick={async () => {
-            const result =
-              await generateEditLink({
-                data: {
-                  submission_id:
-                    id,
+            try {
+              const result =
+                await generateEditLink({
+                  data: {
+                    submission_id:
+                      id,
 
-                  token_type:
-                    linkType,
+                    token_type:
+                      linkType,
 
-                  expires_in_hours:
-                    null,
-                },
-              });
+                    expires_in_hours:
+                      null,
+                  },
+                });
 
-            const url =
-              `${window.location.origin}/edit/${result.token}`;
+              const url =
+                `${window.location.origin}/edit/${result.token}`;
 
-            setGeneratedLink(
-              url,
-            );
+              setGeneratedLink(
+                url,
+              );
 
-            await navigator.clipboard.writeText(
-              url,
-            );
+              await navigator.clipboard.writeText(
+                url,
+              );
 
-            toast.success(
-              "Edit link copied",
-            );
+              toast.success(
+                "Edit link generated and copied",
+              );
+            } catch (
+              error
+            ) {
+              toast.error(
+                error instanceof
+                  Error
+                  ? error.message
+                  : "Could not create edit link.",
+              );
+            }
           }}
         >
           <Link2 className="size-4" />
@@ -1145,22 +1572,26 @@ function ResponseDetail() {
         </Button>
 
         {generatedLink ? (
-          <div className="rounded-lg border border-border p-3">
-            <p className="break-all text-xs">
+          <div className="space-y-3 rounded-lg border border-border p-3">
+            <p className="break-all text-xs text-muted-foreground">
               {
                 generatedLink
               }
             </p>
 
-            <div className="mt-2 flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() =>
-                  void navigator.clipboard.writeText(
+                onClick={async () => {
+                  await navigator.clipboard.writeText(
                     generatedLink,
-                  )
-                }
+                  );
+
+                  toast.success(
+                    "Copied",
+                  );
+                }}
               >
                 <Copy className="size-4" />
 
@@ -1174,6 +1605,7 @@ function ResponseDetail() {
                   window.open(
                     generatedLink,
                     "_blank",
+                    "noopener,noreferrer",
                   )
                 }
               >
@@ -1195,55 +1627,87 @@ function ResponseDetail() {
           Moderation history
         </h2>
 
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 space-y-3">
           {(
             moderationHistory ??
             []
           ).map(
             (
-              item:
-                any,
+              item: {
+                id: string;
+
+                artist_snapshot?:
+                  string | null;
+
+                song_title_snapshot?:
+                  string | null;
+
+                action:
+                  string;
+
+                reason:
+                  string;
+
+                created_at:
+                  string;
+              },
             ) => (
               <div
                 key={
                   item.id
                 }
-                className="rounded-lg border border-border p-3"
+                className="rounded-lg border border-border bg-secondary/20 p-3"
               >
-                <p className="font-medium">
-                  {
-                    item.artist_snapshot
-                  }
-                  {" — "}
-                  {
-                    item.song_title_snapshot
-                  }
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium">
+                    {item.artist_snapshot
+                      ? `${item.artist_snapshot} — ${item.song_title_snapshot ?? ""}`
+                      : "Entry"}
+                  </p>
 
-                <p className="mt-1 text-xs uppercase text-muted-foreground">
-                  {
-                    item.action
-                  }
-                </p>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    {item.action.replace(
+                      "_",
+                      " ",
+                    )}
+                  </span>
+                </div>
 
                 <p className="mt-2 text-sm">
                   {
                     item.reason
                   }
                 </p>
+
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  {new Date(
+                    item.created_at,
+                  ).toLocaleString()}
+                </p>
               </div>
             ),
           )}
+
+          {(
+            moderationHistory ??
+            []
+          ).length ===
+          0 ? (
+            <p className="text-sm text-muted-foreground">
+              No moderation
+              actions yet.
+            </p>
+          ) : null}
         </div>
       </section>
 
       {/* ======================================================
-       * TECHNICAL INFO
+       * TECHNICAL INFORMATION
        * ==================================================== */}
 
       <section className="surface p-5">
-        <div className="flex items-center gap-2">
-          <Shield className="size-4" />
+        <div className="mb-3 flex items-center gap-2">
+          <Shield className="size-4 text-muted-foreground" />
 
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Technical
@@ -1252,7 +1716,7 @@ function ResponseDetail() {
         </div>
 
         <Row
-          label="Known IPs"
+          label="Known IP addresses"
           value={
             technical
               ?.ip_history
@@ -1260,35 +1724,75 @@ function ResponseDetail() {
             0
           }
         />
+
+        <Row
+          label="Edits made"
+          value={
+            submission.edit_count
+          }
+        />
       </section>
 
-      <Button
-        variant="destructive"
-        onClick={async () => {
-          if (
-            !confirm(
-              "Delete this response permanently?",
-            )
-          ) {
-            return;
-          }
+      {/* ======================================================
+       * DELETE
+       * ==================================================== */}
 
-          await remove({
-            data: {
-              id,
-            },
-          });
+      <section className="surface border border-destructive/25 p-5">
+        <h2 className="text-sm font-semibold text-destructive">
+          Delete response
+        </h2>
 
-          navigate({
-            to:
-              "/admin/responses",
-          });
-        }}
-      >
-        <Trash2 className="size-4" />
+        <p className="mt-1 text-xs text-muted-foreground">
+          This permanently
+          deletes the
+          confirmation and
+          its related data.
+        </p>
 
-        Delete response
-      </Button>
+        <Button
+          className="mt-4"
+          variant="destructive"
+          onClick={async () => {
+            if (
+              !confirm(
+                `Delete the response from ${submission.country} permanently?`,
+              )
+            ) {
+              return;
+            }
+
+            try {
+              await remove({
+                data: {
+                  id,
+                },
+              });
+
+              toast.success(
+                "Response deleted",
+              );
+
+              navigate({
+                to:
+                  "/admin/responses",
+              });
+            } catch (
+              error
+            ) {
+              toast.error(
+                error instanceof
+                  Error
+                  ? error.message
+                  : "Could not delete the response.",
+              );
+            }
+          }}
+        >
+          <Trash2 className="size-4" />
+
+          Delete response
+        </Button>
+      </section>
     </div>
   );
 }
