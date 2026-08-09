@@ -1,44 +1,23 @@
-import {
-  createServerFn,
-} from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
 
-import {
-  createClient,
-} from "@supabase/supabase-js";
-
-import {
-  z,
-} from "zod";
-
-import type {
-  Database,
-} from "@/integrations/supabase/types";
+import type { Database } from "@/integrations/supabase/types";
 
 /* ============================================================
- * PUBLIC SUPABASE CLIENT
+ * PUBLIC SERVER SUPABASE CLIENT
  * ========================================================== */
 
 function getPublicServerSupabase() {
   const url =
-    process.env[
-      "SUPABASE_URL"
-    ] ||
-    process.env[
-      "VITE_SUPABASE_URL"
-    ];
+    process.env["SUPABASE_URL"] ||
+    process.env["VITE_SUPABASE_URL"];
 
   const key =
-    process.env[
-      "SUPABASE_PUBLISHABLE_KEY"
-    ] ||
-    process.env[
-      "VITE_SUPABASE_PUBLISHABLE_KEY"
-    ];
+    process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
 
-  if (
-    !url ||
-    !key
-  ) {
+  if (!url || !key) {
     throw new Error(
       "Missing Supabase public configuration.",
     );
@@ -49,14 +28,9 @@ function getPublicServerSupabase() {
     key,
     {
       auth: {
-        persistSession:
-          false,
-
-        autoRefreshToken:
-          false,
-
-        storage:
-          undefined,
+        persistSession: false,
+        autoRefreshToken: false,
+        storage: undefined,
       },
     },
   );
@@ -68,22 +42,14 @@ function getPublicServerSupabase() {
 
 async function rpc<T>(
   name: string,
-
-  args: Record<
-    string,
-    unknown
-  >,
+  args: Record<string, unknown>,
 ): Promise<T> {
   const db =
     getPublicServerSupabase();
 
   const boundRpc =
-    db.rpc.bind(
-      db,
-    ) as unknown as (
-      functionName:
-        string,
-
+    db.rpc.bind(db) as unknown as (
+      functionName: string,
       parameters?: Record<
         string,
         unknown
@@ -92,19 +58,17 @@ async function rpc<T>(
       data: unknown;
 
       error: {
-        message:
-          string;
+        message: string;
       } | null;
     }>;
 
   const {
     data,
     error,
-  } =
-    await boundRpc(
-      name,
-      args,
-    );
+  } = await boundRpc(
+    name,
+    args,
+  );
 
   if (error) {
     throw new Error(
@@ -128,8 +92,7 @@ export interface NextInLineEdition {
 
   name: string;
 
-  edition_number:
-    number;
+  edition_number: number;
 }
 
 export interface NextInLineNfEntry {
@@ -147,12 +110,11 @@ export interface NextInLineNfEntry {
     | string
     | null;
 
-  position:
-    number;
+  position: number;
 }
 
 /* ============================================================
- * COUNTRIES
+ * LOAD COUNTRIES
  * ========================================================== */
 
 export const getNextInLineCountries =
@@ -178,7 +140,7 @@ export const getNextInLineCountries =
   );
 
 /* ============================================================
- * COUNTRY DETAILS
+ * LOAD ONE COUNTRY
  * ========================================================== */
 
 const countrySchema =
@@ -199,10 +161,7 @@ export const getNextInLineCountry =
     method: "POST",
   })
     .inputValidator(
-      (
-        data:
-          unknown,
-      ) =>
+      (data: unknown) =>
         countrySchema.parse(
           data,
         ),
@@ -227,7 +186,7 @@ export const getNextInLineCountry =
             | "national_final"
             | "unknown";
 
-          entries:
+          entries?:
             NextInLineNfEntry[];
         }>(
           "public_next_in_line_country",
@@ -243,7 +202,7 @@ export const getNextInLineCountry =
     );
 
 /* ============================================================
- * SUBMIT
+ * SUBMIT NEXT IN LINE
  * ========================================================== */
 
 const submitSchema =
@@ -318,10 +277,7 @@ export const submitNextInLine =
     method: "POST",
   })
     .inputValidator(
-      (
-        data:
-          unknown,
-      ) =>
+      (data: unknown) =>
         submitSchema.parse(
           data,
         ),
@@ -334,8 +290,7 @@ export const submitNextInLine =
           return await rpc<{
             ok: boolean;
 
-            error?:
-              string;
+            error?: string;
           }>(
             "submit_next_in_line",
             {
@@ -381,6 +336,11 @@ export const submitNextInLine =
                 "duplicate_artist",
             };
           }
+
+          console.error(
+            "Next in Line submission failed:",
+            error,
+          );
 
           return {
             ok:
