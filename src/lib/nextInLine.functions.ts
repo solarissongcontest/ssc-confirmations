@@ -8,14 +8,14 @@ import type { Database } from "@/integrations/supabase/types";
  * PUBLIC SERVER SUPABASE CLIENT
  * ========================================================== */
 
-function getPublicServerSupabase() {
+function getPublicServerSupabase() {  
   const url =
-    process.env["SUPABASE_URL"] ||
-    process.env["VITE_SUPABASE_URL"];
+    process.env["VITE_SUPABASE_URL"] ||
+    process.env["SUPABASE_URL"];
 
-  const key =
-    process.env["SUPABASE_PUBLISHABLE_KEY"] ||
-    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
+ const key =
+    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["SUPABASE_PUBLISHABLE_KEY"];
 
   if (!url || !key) {
     throw new Error(
