@@ -46,6 +46,9 @@ export interface AdminEdition {
 
   status: string;
 
+  editing_enabled:
+    boolean;
+
   created_at: string;
 
   submission_rounds: {
@@ -54,6 +57,9 @@ export interface AdminEdition {
     name: string;
 
     status: string;
+
+    editing_enabled:
+      boolean;
 
     opens_at:
       | string
@@ -78,13 +84,16 @@ export interface AdminNextInLineSubmission {
 
   edition_id: string;
 
-  source_submission_id: string;
+  source_submission_id:
+    string;
 
   country: string;
 
-  participating: boolean;
+  participating:
+    boolean;
 
-  entry_unknown: boolean;
+  entry_unknown:
+    boolean;
 
   selection_type:
     | "none"
@@ -116,7 +125,8 @@ export interface AdminNextInLineSubmission {
     | string
     | null;
 
-  submitted_at: string;
+  submitted_at:
+    string;
 }
 
 /* ============================================================
@@ -143,8 +153,10 @@ export function useEditions() {
           "postgres_changes",
           {
             event: "*",
+
             schema:
               "public",
+
             table:
               "editions",
           },
@@ -161,8 +173,10 @@ export function useEditions() {
           "postgres_changes",
           {
             event: "*",
+
             schema:
               "public",
+
             table:
               "submission_rounds",
           },
@@ -193,7 +207,9 @@ export function useEditions() {
 
     queryFn:
       async () =>
-        (await fn()) as unknown as AdminEdition[],
+        (
+          await fn()
+        ) as unknown as AdminEdition[],
 
     refetchInterval:
       10_000,
@@ -215,9 +231,11 @@ export function useEditions() {
 
 export function useSubmissions(
   filter: {
-    edition_id?: string;
+    edition_id?:
+      string;
 
-    round_id?: string;
+    round_id?:
+      string;
   },
 ) {
   const fn =
@@ -254,8 +272,10 @@ export function useSubmissions(
           "postgres_changes",
           {
             event: "*",
+
             schema:
               "public",
+
             table:
               "submissions",
           },
@@ -266,8 +286,10 @@ export function useSubmissions(
           "postgres_changes",
           {
             event: "*",
+
             schema:
               "public",
+
             table:
               "internal_entries",
           },
@@ -278,8 +300,10 @@ export function useSubmissions(
           "postgres_changes",
           {
             event: "*",
+
             schema:
               "public",
+
             table:
               "national_finals",
           },
@@ -290,8 +314,10 @@ export function useSubmissions(
           "postgres_changes",
           {
             event: "*",
+
             schema:
               "public",
+
             table:
               "national_final_entries",
           },
@@ -302,8 +328,10 @@ export function useSubmissions(
           "postgres_changes",
           {
             event: "*",
+
             schema:
               "public",
+
             table:
               "submission_rounds",
           },
@@ -326,18 +354,22 @@ export function useSubmissions(
   return useQuery({
     queryKey: [
       "submissions",
+
       filter.edition_id ??
         "",
+
       filter.round_id ??
         "",
     ],
 
     queryFn:
       async () =>
-        (await fn({
-          data:
-            filter,
-        })) as unknown as AdminSubmission[],
+        (
+          await fn({
+            data:
+              filter,
+          })
+        ) as unknown as AdminSubmission[],
 
     refetchInterval:
       3_000,
@@ -358,7 +390,8 @@ export function useSubmissions(
  * ========================================================== */
 
 export function useNextInLineSubmissions(
-  editionId?: string,
+  editionId?:
+    string,
 ) {
   const queryClient =
     useQueryClient();
@@ -383,8 +416,10 @@ export function useNextInLineSubmissions(
           "postgres_changes",
           {
             event: "*",
+
             schema:
               "public",
+
             table:
               "next_in_line_submissions",
           },
@@ -406,6 +441,7 @@ export function useNextInLineSubmissions(
   return useQuery({
     queryKey: [
       "next-in-line-submissions",
+
       editionId ??
         "",
     ],
@@ -499,9 +535,9 @@ export function useScope(
       () =>
         editions?.find(
           (
-            edition,
+            item,
           ) =>
-            edition.id ===
+            item.id ===
             editionId,
         ) ??
         editions?.[0],
@@ -513,7 +549,8 @@ export function useScope(
     );
 
   const rounds =
-    edition?.submission_rounds ??
+    edition
+      ?.submission_rounds ??
     [];
 
   const isNextInLine =
@@ -525,9 +562,9 @@ export function useScope(
       ? undefined
       : rounds.find(
           (
-            round,
+            item,
           ) =>
-            round.id ===
+            item.id ===
             roundId,
         );
 
