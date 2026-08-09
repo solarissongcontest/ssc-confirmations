@@ -6,15 +6,28 @@ import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  server: { port: 8080, host: true },
+  server: {
+    port: 8080,
+    host: true,
+  },
+
   plugins: [
-    cloudflare({ viteEnvironment: { name: "ssr" } }),
-    tsConfigPaths({ projects: ["./tsconfig.json"] }),
-    tailwindcss(),
-    tanstackStart({
-      // Route TanStack Start's server entry through src/server.ts (SSR error wrapper).
-      server: { entry: "server" },
+    cloudflare({
+      viteEnvironment: {
+        name: "ssr",
+      },
     }),
+
+    tsConfigPaths({
+      projects: [
+        "./tsconfig.json",
+      ],
+    }),
+
+    tailwindcss(),
+
+    tanstackStart(),
+
     viteReact(),
   ],
 });
