@@ -84,12 +84,15 @@ function StatsPage() {
           }
         : {}),
 
-      ...(scope.roundId
-        ? {
-            round_id:
-              scope.roundId,
-          }
-        : {}),
+      ...(
+        scope.roundId &&
+        !scope.isNextInLine
+          ? {
+              round_id:
+                scope.roundId,
+            }
+          : {}
+      ),
     });
 
   const {
@@ -101,10 +104,6 @@ function StatsPage() {
         undefined,
     );
 
-  /* ==========================================================
-   * NORMAL CONFIRMATION STATS
-   * ======================================================== */
-
   const rows =
     submissions ??
     [];
@@ -112,36 +111,36 @@ function StatsPage() {
   const participating =
     rows.filter(
       (
-        row,
+        r,
       ) =>
-        row.participating,
+        r.participating,
     );
 
   const internal =
     participating.filter(
       (
-        row,
+        r,
       ) =>
-        row.selection_method ===
+        r.selection_method ===
         "internal",
     );
 
   const nf =
     participating.filter(
       (
-        row,
+        r,
       ) =>
-        row.selection_method ===
+        r.selection_method ===
         "national_final",
     );
 
   const unknown =
     participating.filter(
       (
-        row,
+        r,
       ) =>
-        !row.selection_method ||
-        row.selection_method ===
+        !r.selection_method ||
+        r.selection_method ===
           "unknown",
     );
 
@@ -164,11 +163,11 @@ function StatsPage() {
     >(
       (
         acc,
-        row,
+        r,
       ) => {
         const status =
           statusOf(
-            row,
+            r,
           );
 
         acc[
@@ -187,9 +186,7 @@ function StatsPage() {
       {},
     );
 
-  /* ==========================================================
-   * NEXT IN LINE STATS
-   * ======================================================== */
+  /* NEXT IN LINE */
 
   const nextRows =
     nextInLine ??
@@ -198,56 +195,55 @@ function StatsPage() {
   const nextYes =
     nextRows.filter(
       (
-        row,
+        r,
       ) =>
-        row.participating,
+        r.participating,
     );
 
   const nextNo =
     nextRows.filter(
       (
-        row,
+        r,
       ) =>
-        !row.participating,
-    );
-
-  const nextUnknown =
-    nextYes.filter(
-      (
-        row,
-      ) =>
-        row.entry_unknown,
+        !r.participating,
     );
 
   const nextKnown =
     nextYes.filter(
       (
-        row,
+        r,
       ) =>
-        !row.entry_unknown,
+        !r.entry_unknown,
+    );
+
+  const nextUnknown =
+    nextYes.filter(
+      (
+        r,
+      ) =>
+        r.entry_unknown,
     );
 
   const nextInternal =
     nextKnown.filter(
       (
-        row,
+        r,
       ) =>
-        row.selection_type ===
+        r.selection_type ===
         "internal",
     );
 
-  const nextNationalFinal =
+  const nextNF =
     nextKnown.filter(
       (
-        row,
+        r,
       ) =>
-        row.selection_type ===
+        r.selection_type ===
         "national_final",
     );
 
-  const nextParticipationRate =
-    nextRows.length >
-    0
+  const rate =
+    nextRows.length
       ? Math.round(
           (
             nextYes.length /
@@ -259,22 +255,17 @@ function StatsPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      {/* HEADER */}
-
       <header>
         <h1 className="text-3xl sm:text-4xl">
           Statistics
         </h1>
 
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Live overview of
-          confirmations and
-          Next in Line
-          responses.
+          {scope.isNextInLine
+            ? "Live overview of Next in Line responses."
+            : "Live overview of confirmations for the selected round."}
         </p>
       </header>
-
-      {/* SCOPE */}
 
       <ScopePicker
         scope={
@@ -286,305 +277,274 @@ function StatsPage() {
       />
 
       {/* ======================================================
-       * NORMAL CONFIRMATIONS
+       * NEXT IN LINE STATS
        * ==================================================== */}
 
-      <section className="space-y-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-            Confirmations
-          </p>
+      {scope.isNextInLine ? (
+        <>
+          <div>
+            <p className="text-xs uppercase tracking-[0.14em] text-accent">
+              Next in Line
+            </p>
 
-          <h2 className="mt-1 text-xl">
-            Normal submissions
-          </h2>
-        </div>
+            <h2 className="mt-1 text-2xl">
+              Statistics
+            </h2>
+          </div>
 
-        {limit ? (
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+            <Card
+              label="Responses"
+              value={String(
+                nextRows.length,
+              )}
+            />
+
+            <Card
+              label="Would participate"
+              value={String(
+                nextYes.length,
+              )}
+            />
+
+            <Card
+              label="Would not participate"
+              value={String(
+                nextNo.length,
+              )}
+            />
+
+            <Card
+              label="Participation rate"
+              value={`${rate}%`}
+            />
+
+            <Card
+              label="Known entries"
+              value={String(
+                nextKnown.length,
+              )}
+            />
+
+            <Card
+              label="Entry unknown"
+              value={String(
+                nextUnknown.length,
+              )}
+            />
+
+            <Card
+              label="Internal"
+              value={String(
+                nextInternal.length,
+              )}
+            />
+
+            <Card
+              label="National Finals"
+              value={String(
+                nextNF.length,
+              )}
+            />
+          </div>
+
           <div className="surface p-4 sm:p-5">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                  Capacity
+                  Participation
                 </p>
 
                 <p className="mt-1 text-lg font-medium">
                   {
-                    rows.length
+                    nextYes.length
                   }{" "}
-                  /{" "}
+                  yes ·{" "}
                   {
-                    limit
-                  }
+                    nextNo.length
+                  }{" "}
+                  no
                 </p>
               </div>
 
-              <div className="text-right">
-                <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                  Remaining
-                </p>
-
-                <p className="mt-1 text-lg font-medium">
-                  {Math.max(
-                    limit -
-                      rows.length,
-
-                    0,
-                  )}
-                </p>
-              </div>
+              <p className="text-2xl font-medium">
+                {rate}%
+              </p>
             </div>
 
             <Progress
               value={
-                (
-                  rows.length /
-                  limit
-                ) *
-                100
+                rate
               }
               className="mt-3 h-1.5"
             />
-
-            {rows.length >=
-            limit ? (
-              <p className="mt-2 text-[10px] font-medium uppercase tracking-[0.1em] text-warning">
-                Full /
-                closed
-              </p>
-            ) : null}
           </div>
-        ) : null}
+        </>
+      ) : (
+        <>
+          {/* ==================================================
+           * NORMAL ROUND STATS
+           * ================================================ */}
 
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-          <Card
-            label="Responses"
-            value={
-              limit
-                ? `${rows.length} / ${limit}`
-                : String(
-                    rows.length,
-                  )
-            }
-          />
+          {limit ? (
+            <div className="surface p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                    Capacity
+                  </p>
 
-          <Card
-            label="Participating"
-            value={String(
-              participating.length,
-            )}
-          />
-
-          <Card
-            label="Not participating"
-            value={String(
-              rows.length -
-                participating.length,
-            )}
-          />
-
-          <Card
-            label="Internal"
-            value={String(
-              internal.length,
-            )}
-          />
-
-          <Card
-            label="National finals"
-            value={String(
-              nf.length,
-            )}
-          />
-
-          <Card
-            label="Unknown selection"
-            value={String(
-              unknown.length,
-            )}
-          />
-
-          <Card
-            label="Songs submitted"
-            value={String(
-              songs.length,
-            )}
-          />
-
-          <Card
-            label="Songs missing"
-            value={String(
-              participating.length -
-                songs.length,
-            )}
-          />
-        </div>
-
-        <div className="surface p-4 sm:p-5">
-          <h2 className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-            Entry statuses
-          </h2>
-
-          <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {Object.entries(
-              statusCounts,
-            ).map(
-              ([
-                status,
-                count,
-              ]) => (
-                <li
-                  key={
-                    status
-                  }
-                  className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-border bg-secondary/20 px-3 py-2"
-                >
-                  <span className="truncate text-[11px] sm:text-sm">
+                  <p className="mt-1 text-lg font-medium">
                     {
+                      rows.length
+                    }{" "}
+                    /{" "}
+                    {
+                      limit
+                    }
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                    Remaining
+                  </p>
+
+                  <p className="mt-1 text-lg font-medium">
+                    {Math.max(
+                      limit -
+                        rows.length,
+                      0,
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <Progress
+                value={
+                  (
+                    rows.length /
+                    limit
+                  ) *
+                  100
+                }
+                className="mt-3 h-1.5"
+              />
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+            <Card
+              label="Responses"
+              value={
+                limit
+                  ? `${rows.length} / ${limit}`
+                  : String(
+                      rows.length,
+                    )
+              }
+            />
+
+            <Card
+              label="Participating"
+              value={String(
+                participating.length,
+              )}
+            />
+
+            <Card
+              label="Not participating"
+              value={String(
+                rows.length -
+                  participating.length,
+              )}
+            />
+
+            <Card
+              label="Internal"
+              value={String(
+                internal.length,
+              )}
+            />
+
+            <Card
+              label="National finals"
+              value={String(
+                nf.length,
+              )}
+            />
+
+            <Card
+              label="Unknown selection"
+              value={String(
+                unknown.length,
+              )}
+            />
+
+            <Card
+              label="Songs submitted"
+              value={String(
+                songs.length,
+              )}
+            />
+
+            <Card
+              label="Songs missing"
+              value={String(
+                participating.length -
+                  songs.length,
+              )}
+            />
+          </div>
+
+          <div className="surface p-4 sm:p-5">
+            <h2 className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              Entry statuses
+            </h2>
+
+            <ul className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
+              {Object.entries(
+                statusCounts,
+              ).map(
+                ([
+                  status,
+                  count,
+                ]) => (
+                  <li
+                    key={
                       status
                     }
-                  </span>
+                    className="flex items-center justify-between rounded-xl border border-border bg-secondary/20 px-3 py-2"
+                  >
+                    <span className="truncate text-sm">
+                      {
+                        status
+                      }
+                    </span>
 
-                  <span className="shrink-0 text-sm font-medium">
-                    {
-                      count
-                    }
-                  </span>
+                    <span className="font-medium">
+                      {
+                        count
+                      }
+                    </span>
+                  </li>
+                ),
+              )}
+
+              {Object.keys(
+                statusCounts,
+              ).length ===
+              0 ? (
+                <li className="col-span-2 text-sm text-muted-foreground">
+                  No
+                  responses
+                  yet.
                 </li>
-              ),
-            )}
-
-            {Object.keys(
-              statusCounts,
-            ).length ===
-            0 ? (
-              <li className="col-span-2 text-sm text-muted-foreground">
-                No responses
-                yet.
-              </li>
-            ) : null}
-          </ul>
-        </div>
-      </section>
-
-      {/* ======================================================
-       * NEXT IN LINE
-       * ==================================================== */}
-
-      <section className="space-y-3 pt-2">
-        <div>
-          <p className="text-xs uppercase tracking-[0.14em] text-accent">
-            Next in Line
-          </p>
-
-          <h2 className="mt-1 text-xl">
-            Next in Line
-            statistics
-          </h2>
-
-          <p className="mt-1 text-xs text-muted-foreground">
-            These numbers
-            apply to the
-            selected edition,
-            not an individual
-            confirmation
-            round.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-          <Card
-            label="Responses"
-            value={String(
-              nextRows.length,
-            )}
-          />
-
-          <Card
-            label="Would participate"
-            value={String(
-              nextYes.length,
-            )}
-            hint={`${nextParticipationRate}% of responses`}
-          />
-
-          <Card
-            label="Would not participate"
-            value={String(
-              nextNo.length,
-            )}
-          />
-
-          <Card
-            label="Known entries"
-            value={String(
-              nextKnown.length,
-            )}
-          />
-
-          <Card
-            label="Entry unknown"
-            value={String(
-              nextUnknown.length,
-            )}
-          />
-
-          <Card
-            label="Internal"
-            value={String(
-              nextInternal.length,
-            )}
-          />
-
-          <Card
-            label="National Final"
-            value={String(
-              nextNationalFinal.length,
-            )}
-          />
-
-          <Card
-            label="Participation rate"
-            value={`${nextParticipationRate}%`}
-          />
-        </div>
-
-        <div className="surface p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                Next in Line
-                participation
-              </p>
-
-              <p className="mt-1 text-lg font-medium">
-                {
-                  nextYes.length
-                }{" "}
-                yes ·{" "}
-                {
-                  nextNo.length
-                }{" "}
-                no
-              </p>
-            </div>
-
-            <p className="text-2xl font-medium">
-              {
-                nextParticipationRate
-              }
-              %
-            </p>
+              ) : null}
+            </ul>
           </div>
-
-          <Progress
-            value={
-              nextParticipationRate
-            }
-            className="mt-3 h-1.5"
-          />
-        </div>
-      </section>
+        </>
+      )}
     </div>
   );
 }
