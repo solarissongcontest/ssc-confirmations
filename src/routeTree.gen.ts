@@ -12,11 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as NextInLineRouteImport } from './routes/next-in-line'
+import { Route as RecoverRouteImport } from './routes/recover'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as EditTokenRouteImport } from './routes/edit.$token'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminCalendarRouteImport } from './routes/_authenticated/admin.calendar'
 import { Route as AuthenticatedAdminCountriesRouteImport } from './routes/_authenticated/admin.countries'
 import { Route as AuthenticatedAdminEditionsRouteImport } from './routes/_authenticated/admin.editions'
+import { Route as AuthenticatedAdminRecoveryCodesRouteImport } from './routes/_authenticated/admin.recovery-codes'
 import { Route as AuthenticatedAdminResponsesRouteImport } from './routes/_authenticated/admin.responses'
 import { Route as AuthenticatedAdminRoundsRouteImport } from './routes/_authenticated/admin.rounds'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
@@ -37,10 +41,25 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NextInLineRoute = NextInLineRouteImport.update({
+  id: '/next-in-line',
+  path: '/next-in-line',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecoverRoute = RecoverRouteImport.update({
+  id: '/recover',
+  path: '/recover',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const EditTokenRoute = EditTokenRouteImport.update({
+  id: '/edit/$token',
+  path: '/edit/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
@@ -63,6 +82,12 @@ const AuthenticatedAdminEditionsRoute =
   AuthenticatedAdminEditionsRouteImport.update({
     id: '/editions',
     path: '/editions',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminRecoveryCodesRoute =
+  AuthenticatedAdminRecoveryCodesRouteImport.update({
+    id: '/recovery-codes',
+    path: '/recovery-codes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminResponsesRoute =
@@ -99,10 +124,14 @@ const AuthenticatedAdminResponsesIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/next-in-line': typeof NextInLineRoute
+  '/recover': typeof RecoverRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/edit/$token': typeof EditTokenRoute
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
   '/admin/countries': typeof AuthenticatedAdminCountriesRoute
   '/admin/editions': typeof AuthenticatedAdminEditionsRoute
+  '/admin/recovery-codes': typeof AuthenticatedAdminRecoveryCodesRoute
   '/admin/responses': typeof AuthenticatedAdminResponsesRouteWithChildren
   '/admin/rounds': typeof AuthenticatedAdminRoundsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
@@ -113,9 +142,13 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/next-in-line': typeof NextInLineRoute
+  '/recover': typeof RecoverRoute
+  '/edit/$token': typeof EditTokenRoute
   '/admin/calendar': typeof AuthenticatedAdminCalendarRoute
   '/admin/countries': typeof AuthenticatedAdminCountriesRoute
   '/admin/editions': typeof AuthenticatedAdminEditionsRoute
+  '/admin/recovery-codes': typeof AuthenticatedAdminRecoveryCodesRoute
   '/admin/rounds': typeof AuthenticatedAdminRoundsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -127,10 +160,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/next-in-line': typeof NextInLineRoute
+  '/recover': typeof RecoverRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/edit/$token': typeof EditTokenRoute
   '/_authenticated/admin/calendar': typeof AuthenticatedAdminCalendarRoute
   '/_authenticated/admin/countries': typeof AuthenticatedAdminCountriesRoute
   '/_authenticated/admin/editions': typeof AuthenticatedAdminEditionsRoute
+  '/_authenticated/admin/recovery-codes': typeof AuthenticatedAdminRecoveryCodesRoute
   '/_authenticated/admin/responses': typeof AuthenticatedAdminResponsesRouteWithChildren
   '/_authenticated/admin/rounds': typeof AuthenticatedAdminRoundsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
@@ -143,10 +180,14 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/next-in-line'
+    | '/recover'
     | '/admin'
+    | '/edit/$token'
     | '/admin/calendar'
     | '/admin/countries'
     | '/admin/editions'
+    | '/admin/recovery-codes'
     | '/admin/responses'
     | '/admin/rounds'
     | '/admin/settings'
@@ -157,9 +198,13 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/next-in-line'
+    | '/recover'
+    | '/edit/$token'
     | '/admin/calendar'
     | '/admin/countries'
     | '/admin/editions'
+    | '/admin/recovery-codes'
     | '/admin/rounds'
     | '/admin/settings'
     | '/admin'
@@ -170,10 +215,14 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/next-in-line'
+    | '/recover'
     | '/_authenticated/admin'
+    | '/edit/$token'
     | '/_authenticated/admin/calendar'
     | '/_authenticated/admin/countries'
     | '/_authenticated/admin/editions'
+    | '/_authenticated/admin/recovery-codes'
     | '/_authenticated/admin/responses'
     | '/_authenticated/admin/rounds'
     | '/_authenticated/admin/settings'
@@ -186,6 +235,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  NextInLineRoute: typeof NextInLineRoute
+  RecoverRoute: typeof RecoverRoute
+  EditTokenRoute: typeof EditTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -211,12 +263,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/next-in-line': {
+      id: '/next-in-line'
+      path: '/next-in-line'
+      fullPath: '/next-in-line'
+      preLoaderRoute: typeof NextInLineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recover': {
+      id: '/recover'
+      path: '/recover'
+      fullPath: '/recover'
+      preLoaderRoute: typeof RecoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/edit/$token': {
+      id: '/edit/$token'
+      path: '/edit/$token'
+      fullPath: '/edit/$token'
+      preLoaderRoute: typeof EditTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
@@ -244,6 +317,13 @@ declare module '@tanstack/react-router' {
       path: '/editions'
       fullPath: '/admin/editions'
       preLoaderRoute: typeof AuthenticatedAdminEditionsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/recovery-codes': {
+      id: '/_authenticated/admin/recovery-codes'
+      path: '/recovery-codes'
+      fullPath: '/admin/recovery-codes'
+      preLoaderRoute: typeof AuthenticatedAdminRecoveryCodesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/responses': {
@@ -305,6 +385,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminCalendarRoute: typeof AuthenticatedAdminCalendarRoute
   AuthenticatedAdminCountriesRoute: typeof AuthenticatedAdminCountriesRoute
   AuthenticatedAdminEditionsRoute: typeof AuthenticatedAdminEditionsRoute
+  AuthenticatedAdminRecoveryCodesRoute: typeof AuthenticatedAdminRecoveryCodesRoute
   AuthenticatedAdminResponsesRoute: typeof AuthenticatedAdminResponsesRouteWithChildren
   AuthenticatedAdminRoundsRoute: typeof AuthenticatedAdminRoundsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
@@ -315,6 +396,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminCalendarRoute: AuthenticatedAdminCalendarRoute,
   AuthenticatedAdminCountriesRoute: AuthenticatedAdminCountriesRoute,
   AuthenticatedAdminEditionsRoute: AuthenticatedAdminEditionsRoute,
+  AuthenticatedAdminRecoveryCodesRoute: AuthenticatedAdminRecoveryCodesRoute,
   AuthenticatedAdminResponsesRoute:
     AuthenticatedAdminResponsesRouteWithChildren,
   AuthenticatedAdminRoundsRoute: AuthenticatedAdminRoundsRoute,
@@ -340,7 +422,20 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  NextInLineRoute: NextInLineRoute,
+  RecoverRoute: RecoverRoute,
+  EditTokenRoute: EditTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

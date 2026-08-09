@@ -62,6 +62,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          editing_enabled: boolean
           edition_number: number
           id: string
           name: string
@@ -70,6 +71,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          editing_enabled?: boolean
           edition_number: number
           id?: string
           name: string
@@ -78,6 +80,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          editing_enabled?: boolean
           edition_number?: number
           id?: string
           name?: string
@@ -95,6 +98,10 @@ export type Database = {
           preview_start: string | null
           replacement_video_required: boolean
           replacement_video_url: string | null
+          review_reason: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           song_title: string | null
           song_url: string | null
           submission_id: string
@@ -108,6 +115,10 @@ export type Database = {
           preview_start?: string | null
           replacement_video_required?: boolean
           replacement_video_url?: string | null
+          review_reason?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           song_title?: string | null
           song_url?: string | null
           submission_id: string
@@ -121,6 +132,10 @@ export type Database = {
           preview_start?: string | null
           replacement_video_required?: boolean
           replacement_video_url?: string | null
+          review_reason?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           song_title?: string | null
           song_url?: string | null
           submission_id?: string
@@ -141,6 +156,12 @@ export type Database = {
           id: string
           national_final_id: string
           position: number
+          removed: boolean
+          removed_at: string | null
+          review_reason: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
           song_title: string | null
           song_url: string | null
         }
@@ -149,6 +170,12 @@ export type Database = {
           id?: string
           national_final_id: string
           position?: number
+          removed?: boolean
+          removed_at?: string | null
+          review_reason?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           song_title?: string | null
           song_url?: string | null
         }
@@ -157,6 +184,12 @@ export type Database = {
           id?: string
           national_final_id?: string
           position?: number
+          removed?: boolean
+          removed_at?: string | null
+          review_reason?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           song_title?: string | null
           song_url?: string | null
         }
@@ -202,6 +235,158 @@ export type Database = {
           },
         ]
       }
+      next_in_line_responses: {
+        Row: {
+          artist: string | null
+          country: string
+          created_at: string
+          edition_id: string
+          entry_unknown: boolean
+          id: string
+          national_final_entry_id: string | null
+          participating: boolean
+          preview_end: string | null
+          preview_start: string | null
+          replacement_video_required: boolean
+          replacement_video_url: string | null
+          selection_type: string
+          song_title: string | null
+          song_url: string | null
+          source_submission_id: string
+          updated_at: string
+        }
+        Insert: {
+          artist?: string | null
+          country: string
+          created_at?: string
+          edition_id: string
+          entry_unknown?: boolean
+          id?: string
+          national_final_entry_id?: string | null
+          participating?: boolean
+          preview_end?: string | null
+          preview_start?: string | null
+          replacement_video_required?: boolean
+          replacement_video_url?: string | null
+          selection_type?: string
+          song_title?: string | null
+          song_url?: string | null
+          source_submission_id: string
+          updated_at?: string
+        }
+        Update: {
+          artist?: string | null
+          country?: string
+          created_at?: string
+          edition_id?: string
+          entry_unknown?: boolean
+          id?: string
+          national_final_entry_id?: string | null
+          participating?: boolean
+          preview_end?: string | null
+          preview_start?: string | null
+          replacement_video_required?: boolean
+          replacement_video_url?: string | null
+          selection_type?: string
+          song_title?: string | null
+          song_url?: string | null
+          source_submission_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "next_in_line_responses_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "editions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "next_in_line_responses_national_final_entry_id_fkey"
+            columns: ["national_final_entry_id"]
+            isOneToOne: false
+            referencedRelation: "national_final_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "next_in_line_responses_source_submission_id_fkey"
+            columns: ["source_submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      next_in_line_submissions: {
+        Row: {
+          artist: string | null
+          country: string
+          edition_id: string
+          entry_unknown: boolean
+          id: string
+          national_final_entry_id: string | null
+          preview_end: string | null
+          preview_start: string | null
+          selection_type: string
+          song_title: string | null
+          song_url: string | null
+          source_submission_id: string
+          submitted_at: string
+        }
+        Insert: {
+          artist?: string | null
+          country: string
+          edition_id: string
+          entry_unknown?: boolean
+          id?: string
+          national_final_entry_id?: string | null
+          preview_end?: string | null
+          preview_start?: string | null
+          selection_type: string
+          song_title?: string | null
+          song_url?: string | null
+          source_submission_id: string
+          submitted_at?: string
+        }
+        Update: {
+          artist?: string | null
+          country?: string
+          edition_id?: string
+          entry_unknown?: boolean
+          id?: string
+          national_final_entry_id?: string | null
+          preview_end?: string | null
+          preview_start?: string | null
+          selection_type?: string
+          song_title?: string | null
+          song_url?: string | null
+          source_submission_id?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "next_in_line_submissions_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "editions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "next_in_line_submissions_national_final_entry_id_fkey"
+            columns: ["national_final_entry_id"]
+            isOneToOne: false
+            referencedRelation: "national_final_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "next_in_line_submissions_source_submission_id_fkey"
+            columns: ["source_submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       round_stats: {
         Row: {
           round_id: string
@@ -224,6 +409,38 @@ export type Database = {
             columns: ["round_id"]
             isOneToOne: true
             referencedRelation: "submission_rounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      submission_browser_sessions: {
+        Row: {
+          browser_session_id: string
+          created_at: string
+          id: string
+          last_used_at: string
+          submission_id: string
+        }
+        Insert: {
+          browser_session_id: string
+          created_at?: string
+          id?: string
+          last_used_at?: string
+          submission_id: string
+        }
+        Update: {
+          browser_session_id?: string
+          created_at?: string
+          id?: string
+          last_used_at?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submission_browser_sessions_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
             referencedColumns: ["id"]
           },
         ]
@@ -317,10 +534,58 @@ export type Database = {
           },
         ]
       }
+      submission_review_history: {
+        Row: {
+          action: string
+          admin_user_id: string | null
+          artist_snapshot: string | null
+          created_at: string
+          id: string
+          reason: string
+          song_title_snapshot: string | null
+          submission_id: string
+          target_entry_id: string | null
+          target_type: string
+        }
+        Insert: {
+          action: string
+          admin_user_id?: string | null
+          artist_snapshot?: string | null
+          created_at?: string
+          id?: string
+          reason: string
+          song_title_snapshot?: string | null
+          submission_id: string
+          target_entry_id?: string | null
+          target_type: string
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string | null
+          artist_snapshot?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          song_title_snapshot?: string | null
+          submission_id?: string
+          target_entry_id?: string | null
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submission_review_history_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       submission_rounds: {
         Row: {
           closes_at: string | null
           created_at: string
+          editing_enabled: boolean
           edition_id: string
           id: string
           name: string
@@ -331,6 +596,7 @@ export type Database = {
         Insert: {
           closes_at?: string | null
           created_at?: string
+          editing_enabled?: boolean
           edition_id: string
           id?: string
           name: string
@@ -341,6 +607,7 @@ export type Database = {
         Update: {
           closes_at?: string | null
           created_at?: string
+          editing_enabled?: boolean
           edition_id?: string
           id?: string
           name?: string
@@ -415,6 +682,7 @@ export type Database = {
           nf_result_date_type: string | null
           nf_result_exact_date: string | null
           participating: boolean
+          recovery_code: string
           reveal_approximate_text: string | null
           reveal_date_type: string | null
           reveal_exact_date: string | null
@@ -448,6 +716,7 @@ export type Database = {
           nf_result_date_type?: string | null
           nf_result_exact_date?: string | null
           participating?: boolean
+          recovery_code: string
           reveal_approximate_text?: string | null
           reveal_date_type?: string | null
           reveal_exact_date?: string | null
@@ -481,6 +750,7 @@ export type Database = {
           nf_result_date_type?: string | null
           nf_result_exact_date?: string | null
           participating?: boolean
+          recovery_code?: string
           reveal_approximate_text?: string | null
           reveal_date_type?: string | null
           reveal_exact_date?: string | null
@@ -533,12 +803,118 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      build_submission_review_payload: {
+        Args: { _submission_id: string }
+        Returns: Json
+      }
+      can_edit_submission: {
+        Args: { _submission_id: string }
+        Returns: boolean
+      }
+      find_entry_duplicate: {
+        Args: {
+          _artist: string
+          _edition_id: string
+          _song_title: string
+          _song_url: string
+          _submission_id: string
+        }
+        Returns: Json
+      }
+      generate_recovery_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      is_trusted_submission_browser: {
+        Args: { _browser_session_id: string; _submission_id: string }
+        Returns: boolean
+      }
+      normalize_entry_text: { Args: { value: string }; Returns: string }
+      public_check_entry_duplicate: {
+        Args: {
+          _artist: string
+          _edition_id: string
+          _song_title: string
+          _song_url: string
+          _submission_id: string
+        }
+        Returns: Json
+      }
+      public_check_next_in_line_duplicate: {
+        Args: {
+          _artist: string
+          _country: string
+          _edition_id: string
+          _song_title: string
+          _song_url: string
+          _source_submission_id: string
+        }
+        Returns: Json
+      }
+      public_find_my_submission: {
+        Args: { _browser_session_id: string; _round_id: string }
+        Returns: Json
+      }
+      public_get_my_review_status: {
+        Args: { _browser_session_id: string; _round_id: string }
+        Returns: Json
+      }
+      public_get_recovery_code: {
+        Args: { _browser_session_id: string; _submission_id: string }
+        Returns: Json
+      }
+      public_get_token_review_status: {
+        Args: { _token_hash: string }
+        Returns: Json
+      }
+      public_load_draft: {
+        Args: { _browser_session_id: string; _round_id: string }
+        Returns: Json
+      }
+      public_lookup_submission: {
+        Args: { _country: string; _round_id: string }
+        Returns: Json
+      }
+      public_next_in_line_countries: { Args: never; Returns: Json }
+      public_next_in_line_country: {
+        Args: { _country: string; _edition_id: string }
+        Returns: Json
+      }
+      public_recover_submission: {
+        Args: {
+          _browser_session_id: string
+          _country: string
+          _recovery_code: string
+          _round_id: string
+        }
+        Returns: Json
+      }
+      public_resolve_edit_token: {
+        Args: { _token_hash: string }
+        Returns: Json
+      }
+      public_save_draft: {
+        Args: {
+          _browser_session_id: string
+          _country: string
+          _instagram_username: string
+          _ip: string
+          _payload: Json
+          _round_id: string
+        }
+        Returns: Json
+      }
+      public_set_recovery_code: {
+        Args: {
+          _browser_session_id: string
+          _recovery_code: string
+          _submission_id: string
+        }
+        Returns: Json
       }
       round_availability: { Args: { _round_id: string }; Returns: Json }
       round_is_open: {
@@ -549,6 +925,8 @@ export type Database = {
         Returns: boolean
       }
       submit_confirmation: { Args: { payload: Json }; Returns: Json }
+      submit_confirmation_core: { Args: { payload: Json }; Returns: Json }
+      submit_next_in_line: { Args: { payload: Json }; Returns: Json }
     }
     Enums: {
       app_role: "admin"
