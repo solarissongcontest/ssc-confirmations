@@ -132,9 +132,16 @@ function ResponsesPage() {
   const rows =
     useMemo(
       () => {
-        let list =
-          submissions ??
-          [];
+        /*
+         * Copy first so sorting does not mutate React Query's
+         * original cached array.
+         */
+        let list = [
+          ...(
+            submissions ??
+            []
+          ),
+        ];
 
         if (
           filter ===
@@ -272,9 +279,62 @@ function ResponsesPage() {
                   .toLowerCase()
                   .includes(
                     term,
+                  ) ||
+
+                (
+                  s
+                    .national_finals
+                    ?.nf_name ??
+                  ""
+                )
+                  .toLowerCase()
+                  .includes(
+                    term,
                   ),
             );
         }
+
+        /*
+         * UNREVIEWED RESPONSES ALWAYS COME FIRST.
+         *
+         * Reviewed:
+         *   true = 1
+         *
+         * Unreviewed:
+         *   false = 0
+         *
+         * So false sorts before true.
+         *
+         * Within each group, newest submissions come first.
+         */
+        list.sort(
+          (
+            a,
+            b,
+          ) => {
+            if (
+              Boolean(
+                a.reviewed,
+              ) !==
+              Boolean(
+                b.reviewed,
+              )
+            ) {
+              return a.reviewed
+                ? 1
+                : -1;
+            }
+
+            return (
+              new Date(
+                b.submitted_at,
+              ).getTime() -
+              new Date(
+                a.submitted_at,
+              ).getTime()
+            );
+          },
+        );
 
         return list;
       },
@@ -283,6 +343,23 @@ function ResponsesPage() {
         submissions,
         filter,
         q,
+      ],
+    );
+
+  const unreviewedCount =
+    useMemo(
+      () =>
+        (
+          submissions ??
+          []
+        ).filter(
+          (
+            submission,
+          ) =>
+            !submission.reviewed,
+        ).length,
+      [
+        submissions,
       ],
     );
 
@@ -413,7 +490,7 @@ function ResponsesPage() {
             </p>
           </div>
 
-          {/* MOBILE */}
+          {/* MOBILE NEXT IN LINE */}
 
           <div className="space-y-3 sm:hidden">
             {nextRows.map(
@@ -504,6 +581,7 @@ function ResponsesPage() {
                             {
                               row.preview_start
                             }
+
                             {row.preview_end
                               ? ` – ${row.preview_end}`
                               : ""}
@@ -526,6 +604,7 @@ function ResponsesPage() {
                             className="mt-1 inline-flex items-center gap-1 text-sm text-accent"
                           >
                             Open
+
                             <ExternalLink className="size-3.5" />
                           </a>
                         </div>
@@ -537,6 +616,7 @@ function ResponsesPage() {
                     <CalendarDays className="size-3.5" />
 
                     Submitted{" "}
+
                     {new Date(
                       row.submitted_at,
                     ).toLocaleDateString()}
@@ -555,7 +635,7 @@ function ResponsesPage() {
             ) : null}
           </div>
 
-          {/* DESKTOP */}
+          {/* DESKTOP NEXT IN LINE */}
 
           <div className="surface hidden overflow-hidden sm:block">
             <div className="overflow-x-auto">
@@ -672,6 +752,45 @@ function ResponsesPage() {
            * NORMAL CONFIRMATION VIEW
            * ================================================ */}
 
+          {unreviewedCount >
+          0 ? (
+            <button
+              type="button"
+              onClick={() =>
+                setFilter(
+                  "Unreviewed",
+                )
+              }
+              className="w-full rounded-xl border border-destructive/60 bg-destructive/10 px-4 py-3 text-left shadow-[0_0_24px_rgba(239,68,68,0.22)] transition hover:bg-destructive/15"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive">
+                  <CircleAlert className="size-5" />
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-destructive">
+                    {unreviewedCount}{" "}
+                    {unreviewedCount ===
+                    1
+                      ? "response needs"
+                      : "responses need"}{" "}
+                    review
+                  </p>
+
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Unreviewed
+                    responses are
+                    shown first.
+                    Tap here to
+                    show only
+                    those.
+                  </p>
+                </div>
+              </div>
+            </button>
+          ) : null}
+
           <div className="space-y-3">
             <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
               <div className="flex w-max gap-2">
@@ -694,13 +813,28 @@ function ResponsesPage() {
 
                         filter ===
                           item
-                          ? "border-primary bg-primary/15 text-foreground"
-                          : "border-white/12 bg-white/5 text-muted-foreground hover:text-foreground",
+                          ? item ===
+                            "Unreviewed"
+                            ? "border-destructive/70 bg-destructive/15 text-destructive shadow-[0_0_14px_rgba(239,68,68,0.20)]"
+                            : "border-primary bg-primary/15 text-foreground"
+                          : item ===
+                              "Unreviewed" &&
+                            unreviewedCount >
+                              0
+                            ? "border-destructive/30 bg-destructive/5 text-destructive"
+                            : "border-white/12 bg-white/5 text-muted-foreground hover:text-foreground",
                       )}
                     >
                       {
                         item
                       }
+
+                      {item ===
+                        "Unreviewed" &&
+                      unreviewedCount >
+                        0
+                        ? ` (${unreviewedCount})`
+                        : ""}
                     </button>
                   ),
                 )}
@@ -739,6 +873,10 @@ function ResponsesPage() {
                 }`}
           </p>
 
+          {/* ==================================================
+           * MOBILE NORMAL RESPONSES
+           * ================================================ */}
+
           <div className="space-y-3 sm:hidden">
             {rows.map(
               (
@@ -771,6 +909,9 @@ function ResponsesPage() {
                     s,
                   );
 
+                const needsReview =
+                  !s.reviewed;
+
                 return (
                   <Link
                     key={
@@ -781,94 +922,165 @@ function ResponsesPage() {
                       id:
                         s.id,
                     }}
-                    className="surface block p-5 transition-transform active:scale-[0.985]"
+                    className={cn(
+                      "surface relative block overflow-hidden p-5 transition-all active:scale-[0.985]",
+
+                      needsReview
+                        ? "border border-destructive/70 bg-destructive/10 shadow-[0_0_26px_rgba(239,68,68,0.30)]"
+                        : "",
+                    )}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <h2 className="text-xl">
-                          {
-                            s.country
-                          }
-                        </h2>
+                    {needsReview ? (
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.16),transparent_58%)]" />
+                    ) : null}
 
-                        <p className="mt-1 truncate text-sm text-muted-foreground">
-                          @
-                          {
-                            s.instagram_username
-                          }
-                        </p>
-                      </div>
+                    <div className="relative">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2
+                              className={cn(
+                                "text-xl",
 
-                      <ArrowRight className="mt-1 size-5 shrink-0 text-muted-foreground" />
-                    </div>
+                                needsReview
+                                  ? "text-destructive"
+                                  : "",
+                              )}
+                            >
+                              {
+                                s.country
+                              }
+                            </h2>
 
-                    <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                          Method
-                        </p>
+                            {needsReview ? (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-destructive shadow-[0_0_10px_rgba(239,68,68,0.20)]">
+                                <CircleAlert className="size-3" />
 
-                        <p className="mt-1 text-sm capitalize">
-                          {
-                            method
-                          }
-                        </p>
-                      </div>
+                                Needs review
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-success">
+                                <CheckCircle2 className="size-3" />
 
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                          Status
-                        </p>
+                                Reviewed
+                              </span>
+                            )}
+                          </div>
 
-                        <div className="mt-1 flex items-center gap-1.5 text-sm">
-                          {songSubmitted(
-                            s,
-                          ) ? (
-                            <CheckCircle2 className="size-3.5 text-success" />
-                          ) : (
-                            <CircleAlert className="size-3.5 text-muted-foreground" />
-                          )}
-
-                          {
-                            status
-                          }
+                          <p className="mt-1 truncate text-sm text-muted-foreground">
+                            @
+                            {
+                              s.instagram_username
+                            }
+                          </p>
                         </div>
+
+                        <ArrowRight
+                          className={cn(
+                            "mt-1 size-5 shrink-0",
+
+                            needsReview
+                              ? "text-destructive"
+                              : "text-muted-foreground",
+                          )}
+                        />
                       </div>
 
-                      <div className="col-span-2">
-                        <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                          Entry
-                        </p>
+                      <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                            Method
+                          </p>
 
-                        <p className="mt-1 text-sm">
-                          {
-                            entry
-                          }
-                        </p>
-                      </div>
+                          <p className="mt-1 text-sm capitalize">
+                            {
+                              method
+                            }
+                          </p>
+                        </div>
 
-                      <div className="col-span-2 flex items-center gap-2 border-t border-white/10 pt-3 text-xs text-muted-foreground">
-                        <CalendarDays className="size-3.5" />
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                            Status
+                          </p>
 
-                        Submitted{" "}
-                        {new Date(
-                          s.submitted_at,
-                        ).toLocaleDateString()}
+                          <div className="mt-1 flex items-center gap-1.5 text-sm">
+                            {songSubmitted(
+                              s,
+                            ) ? (
+                              <CheckCircle2 className="size-3.5 text-success" />
+                            ) : (
+                              <CircleAlert className="size-3.5 text-muted-foreground" />
+                            )}
+
+                            {
+                              status
+                            }
+                          </div>
+                        </div>
+
+                        <div className="col-span-2">
+                          <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                            Entry
+                          </p>
+
+                          <p className="mt-1 text-sm">
+                            {
+                              entry
+                            }
+                          </p>
+                        </div>
+
+                        <div
+                          className={cn(
+                            "col-span-2 flex items-center gap-2 border-t pt-3 text-xs",
+
+                            needsReview
+                              ? "border-destructive/20 text-destructive/80"
+                              : "border-white/10 text-muted-foreground",
+                          )}
+                        >
+                          <CalendarDays className="size-3.5" />
+
+                          Submitted{" "}
+
+                          {new Date(
+                            s.submitted_at,
+                          ).toLocaleDateString()}
+                        </div>
                       </div>
                     </div>
                   </Link>
                 );
               },
             )}
+
+            {rows.length ===
+            0 &&
+            !isLoading ? (
+              <div className="surface p-8 text-center text-sm text-muted-foreground">
+                No responses
+                match this
+                filter.
+              </div>
+            ) : null}
           </div>
+
+          {/* ==================================================
+           * DESKTOP NORMAL RESPONSES
+           * ================================================ */}
 
           <div className="surface hidden overflow-hidden sm:block">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[820px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-widest text-muted-foreground">
                     <th className="px-4 py-3">
                       Country
+                    </th>
+
+                    <th className="px-4 py-3">
+                      Review
                     </th>
 
                     <th className="px-4 py-3">
@@ -897,75 +1109,132 @@ function ResponsesPage() {
                   {rows.map(
                     (
                       s,
-                    ) => (
-                      <tr
-                        key={
-                          s.id
-                        }
-                        className="border-b border-border/60 last:border-0"
-                      >
-                        <td className="px-4 py-3 font-medium">
-                          <Link
-                            to="/admin/responses/$id"
-                            params={{
-                              id:
-                                s.id,
-                            }}
-                            className="hover:text-accent"
-                          >
+                    ) => {
+                      const needsReview =
+                        !s.reviewed;
+
+                      return (
+                        <tr
+                          key={
+                            s.id
+                          }
+                          className={cn(
+                            "relative border-b border-border/60 transition-colors last:border-0",
+
+                            needsReview
+                              ? "bg-destructive/10 shadow-[inset_4px_0_0_rgba(239,68,68,0.90),0_0_18px_rgba(239,68,68,0.18)] hover:bg-destructive/15"
+                              : "hover:bg-white/[0.025]",
+                          )}
+                        >
+                          <td className="px-4 py-4 font-medium">
+                            <Link
+                              to="/admin/responses/$id"
+                              params={{
+                                id:
+                                  s.id,
+                              }}
+                              className={cn(
+                                "hover:text-accent",
+
+                                needsReview
+                                  ? "font-semibold text-destructive"
+                                  : "",
+                              )}
+                            >
+                              {
+                                s.country
+                              }
+                            </Link>
+                          </td>
+
+                          <td className="px-4 py-4">
+                            {needsReview ? (
+                              <Link
+                                to="/admin/responses/$id"
+                                params={{
+                                  id:
+                                    s.id,
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-destructive shadow-[0_0_10px_rgba(239,68,68,0.18)]"
+                              >
+                                <CircleAlert className="size-3.5" />
+
+                                Needs review
+                              </Link>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-success">
+                                <CheckCircle2 className="size-3.5" />
+
+                                Reviewed
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-4 text-muted-foreground">
+                            @
                             {
-                              s.country
+                              s.instagram_username
                             }
-                          </Link>
-                        </td>
+                          </td>
 
-                        <td className="px-4 py-3 text-muted-foreground">
-                          @
-                          {
-                            s.instagram_username
-                          }
-                        </td>
+                          <td className="px-4 py-4 capitalize">
+                            {s.participating
+                              ? (
+                                  s.selection_method ??
+                                  "unknown"
+                                ).replace(
+                                  "_",
+                                  " ",
+                                )
+                              : "Not participating"}
+                          </td>
 
-                        <td className="px-4 py-3 capitalize">
-                          {s.participating
-                            ? (
-                                s.selection_method ??
-                                "unknown"
-                              ).replace(
-                                "_",
-                                " ",
+                          <td className="px-4 py-4">
+                            {s
+                              .internal_entries
+                              ?.song_title
+                              ? `${s.internal_entries.artist} — ${s.internal_entries.song_title}`
+                              : s
+                                    .national_finals
+                                    ?.nf_name
+                                ? `${s.national_finals.nf_name} (${s.national_finals.national_final_entries.length})`
+                                : "—"}
+                          </td>
+
+                          <td className="px-4 py-4 text-xs text-muted-foreground">
+                            {
+                              statusOf(
+                                s,
                               )
-                            : "Not participating"}
-                        </td>
+                            }
+                          </td>
 
-                        <td className="px-4 py-3">
-                          {s
-                            .internal_entries
-                            ?.song_title
-                            ? `${s.internal_entries.artist} — ${s.internal_entries.song_title}`
-                            : s
-                                  .national_finals
-                                  ?.nf_name
-                              ? `${s.national_finals.nf_name} (${s.national_finals.national_final_entries.length})`
-                              : "—"}
-                        </td>
-
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          {
-                            statusOf(
-                              s,
-                            )
-                          }
-                        </td>
-
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          {new Date(
-                            s.submitted_at,
-                          ).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ),
+                          <td className="px-4 py-4 text-xs text-muted-foreground">
+                            {new Date(
+                              s.submitted_at,
+                            ).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      );
+                    },
                   )}
+
+                  {rows.length ===
+                  0 &&
+                  !isLoading ? (
+                    <tr>
+                      <td
+                        colSpan={
+                          7
+                        }
+                        className="px-4 py-8 text-center text-muted-foreground"
+                      >
+                        No responses
+                        match this
+                        filter.
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             </div>
