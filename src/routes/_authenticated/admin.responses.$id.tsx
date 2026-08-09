@@ -89,8 +89,11 @@ function Row({
   label,
   value,
 }: {
-  label: string;
-  value: ReactNode;
+  label:
+    string;
+
+  value:
+    ReactNode;
 }) {
   return (
     <div className="flex flex-wrap justify-between gap-2 border-b border-border/60 py-2 text-sm last:border-0">
@@ -108,9 +111,10 @@ function Row({
 function ReviewBadge({
   status,
 }: {
-  status: EntryReviewStatus;
+  status:
+    EntryReviewStatus;
 }) {
-  const bad =
+  const negative =
     status ===
       "declined" ||
     status ===
@@ -124,7 +128,7 @@ function ReviewBadge({
         status ===
           "accepted"
           ? "bg-success/15 text-success"
-          : bad
+          : negative
             ? "bg-destructive/15 text-destructive"
             : "bg-warning/15 text-warning",
       )}
@@ -171,11 +175,6 @@ function ResponseDetail() {
       createEditLink,
     );
 
-  /*
-   * IMPORTANT:
-   * These names end with "Action" so they do not collide
-   * with our local handler functions below.
-   */
   const reviewInternalAction =
     useServerFn(
       reviewInternalEntry,
@@ -225,15 +224,17 @@ function ResponseDetail() {
   ] =
     useState<
       string | null
-    >(null);
+    >(
+      null,
+    );
 
   const [
     linkType,
     setLinkType,
   ] =
     useState<
-      "reusable"
-      | "one_time"
+      "reusable" |
+      "one_time"
     >(
       "reusable",
     );
@@ -362,7 +363,8 @@ function ResponseDetail() {
     patch:
       Record<
         string,
-        boolean | string
+        boolean |
+        string
       >,
   ) {
     await updateFlags({
@@ -374,6 +376,11 @@ function ResponseDetail() {
 
     refresh();
   }
+
+  /* =========================================================
+   * INTERNAL REVIEW
+   * Accept = NO REASON.
+   * ======================================================= */
 
   async function handleInternalReview(
     status:
@@ -391,10 +398,12 @@ function ResponseDetail() {
       internalReason.trim();
 
     if (
+      status !==
+        "accepted" &&
       !reason
     ) {
       toast.error(
-        "A reason is required.",
+        "A reason is required for this action.",
       );
 
       return;
@@ -408,7 +417,11 @@ function ResponseDetail() {
 
           status,
 
-          reason,
+          reason:
+            status ===
+            "accepted"
+              ? ""
+              : reason,
         },
       });
 
@@ -439,6 +452,11 @@ function ResponseDetail() {
     }
   }
 
+  /* =========================================================
+   * NF REVIEW
+   * Accept = NO REASON.
+   * ======================================================= */
+
   async function handleNfReview(
     entryId:
       string,
@@ -458,10 +476,12 @@ function ResponseDetail() {
       ).trim();
 
     if (
+      status !==
+        "accepted" &&
       !reason
     ) {
       toast.error(
-        "A reason is required.",
+        "A reason is required for this action.",
       );
 
       return;
@@ -475,7 +495,11 @@ function ResponseDetail() {
 
           status,
 
-          reason,
+          reason:
+            status ===
+            "accepted"
+              ? ""
+              : reason,
         },
       });
 
@@ -604,32 +628,28 @@ function ResponseDetail() {
         Back to responses
       </Link>
 
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            {
-              submission.country
-            }
-          </h1>
+      <header>
+        <h1 className="text-2xl font-semibold">
+          {
+            submission.country
+          }
+        </h1>
 
-          <p className="mt-1 text-sm text-muted-foreground">
-            @
-            {
-              submission.instagram_username
-            }
-            {" · "}
-            {
-              statusOf(
-                submission,
-              )
-            }
-          </p>
-        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          @
+          {
+            submission.instagram_username
+          }
+          {" · "}
+          {
+            statusOf(
+              submission,
+            )
+          }
+        </p>
       </header>
 
-      {/* ======================================================
-       * DELEGATION
-       * ==================================================== */}
+      {/* DELEGATION */}
 
       <section className="surface p-5">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -699,9 +719,7 @@ function ResponseDetail() {
         />
       </section>
 
-      {/* ======================================================
-       * INTERNAL SELECTION
-       * ==================================================== */}
+      {/* INTERNAL */}
 
       {internal ? (
         <section
@@ -720,8 +738,7 @@ function ResponseDetail() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                Internal
-                selection
+                Internal selection
               </p>
 
               <h2 className="mt-1 text-lg font-semibold">
@@ -812,8 +829,7 @@ function ResponseDetail() {
                       rel="noreferrer"
                       className="text-accent underline"
                     >
-                      Open replacement
-                      video
+                      Open replacement video
                     </a>
                   ) : (
                     "Required, URL missing"
@@ -830,15 +846,11 @@ function ResponseDetail() {
                 internal.review_status ===
                   "declined"
                   ? "border-destructive/40 bg-destructive/10"
-                  : internal.review_status ===
-                      "accepted"
-                    ? "border-success/30 bg-success/10"
-                    : "border-border bg-secondary/20",
+                  : "border-border bg-secondary/20",
               )}
             >
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Current public
-                reason
+                Public reason
               </p>
 
               <p className="mt-2 text-sm">
@@ -850,16 +862,24 @@ function ResponseDetail() {
           ) : null}
 
           <div className="space-y-3 border-t border-border/60 pt-4">
-            <Label>
-              Reason for admin
-              action *
-            </Label>
+            <div>
+              <Label>
+                Reason
+              </Label>
+
+              <p className="mt-1 text-xs text-muted-foreground">
+                Optional for
+                acceptance. Required
+                for decline or
+                reset.
+              </p>
+            </div>
 
             <Textarea
               value={
                 internalReason
               }
-              placeholder="Required. This reason will be visible to the participant."
+              placeholder="No reason needed to accept."
               onChange={(
                 event,
               ) =>
@@ -914,9 +934,7 @@ function ResponseDetail() {
         </section>
       ) : null}
 
-      {/* ======================================================
-       * NATIONAL FINAL
-       * ==================================================== */}
+      {/* NATIONAL FINAL */}
 
       {nf ? (
         <section className="surface space-y-5 p-5">
@@ -945,8 +963,6 @@ function ResponseDetail() {
             </p>
           </div>
 
-          {/* NF WINNER */}
-
           {winner ? (
             <div className="rounded-xl border-2 border-accent/50 bg-accent/10 p-5">
               <div className="flex items-start gap-3">
@@ -956,8 +972,7 @@ function ResponseDetail() {
 
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-accent">
-                    National Final
-                    winner
+                    National Final winner
                   </p>
 
                   <h3 className="mt-1 text-lg font-semibold">
@@ -1026,8 +1041,7 @@ function ResponseDetail() {
                             rel="noreferrer"
                             className="text-accent underline"
                           >
-                            Open replacement
-                            video
+                            Open replacement video
                           </a>
                         ) : (
                           "Required, URL missing"
@@ -1036,34 +1050,15 @@ function ResponseDetail() {
                   }
                 />
               </div>
-
-              <p className="mt-3 text-xs text-muted-foreground">
-                This is stored as
-                the National Final
-                winner. The
-                selection method
-                remains National
-                Final.
-              </p>
             </div>
           ) : (
             <div className="rounded-xl border border-warning/30 bg-warning/10 p-4">
               <p className="text-sm font-medium">
                 National Final
-                winner not known
-                yet
-              </p>
-
-              <p className="mt-1 text-xs text-muted-foreground">
-                The delegation has
-                not selected a
-                winning NF entry
-                yet.
+                winner not known yet
               </p>
             </div>
           )}
-
-          {/* NF ENTRIES */}
 
           <div className="space-y-3">
             {nf.national_final_entries.map(
@@ -1157,8 +1152,7 @@ function ResponseDetail() {
                     {isWinner ? (
                       <div className="mt-4 rounded-lg border border-accent/25 bg-background/20 p-3">
                         <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-accent">
-                          Winner technical
-                          details
+                          Winner technical details
                         </p>
 
                         <Row
@@ -1201,15 +1195,11 @@ function ResponseDetail() {
                             reviewStatus ===
                               "removed"
                             ? "border-destructive/40 bg-destructive/10"
-                            : reviewStatus ===
-                                "accepted"
-                              ? "border-success/30 bg-success/10"
-                              : "border-border bg-background/20",
+                            : "border-border bg-background/20",
                         )}
                       >
                         <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                          Current public
-                          reason
+                          Public reason
                         </p>
 
                         <p className="mt-1 text-sm">
@@ -1223,16 +1213,28 @@ function ResponseDetail() {
                     {entry.removed ? (
                       <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-destructive">
                         Removed from the
-                        participant's
+                        participant&apos;s
                         National Final
                       </p>
                     ) : null}
 
                     <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
-                      <Label>
-                        Reason for admin
-                        action *
-                      </Label>
+                      <div>
+                        <Label>
+                          Reason
+                        </Label>
+
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          No reason is
+                          required to
+                          accept this
+                          song. Decline,
+                          remove, reset
+                          and winner
+                          changes still
+                          require one.
+                        </p>
+                      </div>
 
                       <Textarea
                         value={
@@ -1241,7 +1243,7 @@ function ResponseDetail() {
                           ] ??
                           ""
                         }
-                        placeholder="Required. This reason will be visible to the participant."
+                        placeholder="No reason needed to accept."
                         onChange={(
                           event,
                         ) =>
@@ -1348,17 +1350,14 @@ function ResponseDetail() {
             0 ? (
               <p className="text-sm text-muted-foreground">
                 No National Final
-                entries submitted
-                yet.
+                entries submitted yet.
               </p>
             ) : null}
           </div>
         </section>
       ) : null}
 
-      {/* ======================================================
-       * ADMIN CONTROLS
-       * ==================================================== */}
+      {/* ADMIN CONTROLS */}
 
       <section className="surface space-y-5 p-5">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -1368,8 +1367,8 @@ function ResponseDetail() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <Label htmlFor="allow-editing">
-              Allow participant to
-              edit
+              Allow participant
+              to edit
             </Label>
 
             <p className="mt-1 text-xs text-muted-foreground">
@@ -1471,9 +1470,7 @@ function ResponseDetail() {
         </div>
       </section>
 
-      {/* ======================================================
-       * EDIT ACCESS
-       * ==================================================== */}
+      {/* EDIT ACCESS */}
 
       <section className="surface space-y-4 p-5">
         <div>
@@ -1618,9 +1615,7 @@ function ResponseDetail() {
         ) : null}
       </section>
 
-      {/* ======================================================
-       * MODERATION HISTORY
-       * ==================================================== */}
+      {/* MODERATION HISTORY */}
 
       <section className="surface p-5">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -1634,19 +1629,23 @@ function ResponseDetail() {
           ).map(
             (
               item: {
-                id: string;
+                id:
+                  string;
 
                 artist_snapshot?:
-                  string | null;
+                  string |
+                  null;
 
                 song_title_snapshot?:
-                  string | null;
+                  string |
+                  null;
 
                 action:
                   string;
 
-                reason:
-                  string;
+                reason?:
+                  string |
+                  null;
 
                 created_at:
                   string;
@@ -1673,11 +1672,15 @@ function ResponseDetail() {
                   </span>
                 </div>
 
-                <p className="mt-2 text-sm">
-                  {
-                    item.reason
-                  }
-                </p>
+                {item.reason &&
+                item.reason !==
+                  "Accepted" ? (
+                  <p className="mt-2 text-sm">
+                    {
+                      item.reason
+                    }
+                  </p>
+                ) : null}
 
                 <p className="mt-2 text-[10px] text-muted-foreground">
                   {new Date(
@@ -1701,17 +1704,14 @@ function ResponseDetail() {
         </div>
       </section>
 
-      {/* ======================================================
-       * TECHNICAL INFORMATION
-       * ==================================================== */}
+      {/* TECHNICAL INFORMATION */}
 
       <section className="surface p-5">
         <div className="mb-3 flex items-center gap-2">
           <Shield className="size-4 text-muted-foreground" />
 
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Technical
-            information
+            Technical information
           </h2>
         </div>
 
@@ -1733,9 +1733,7 @@ function ResponseDetail() {
         />
       </section>
 
-      {/* ======================================================
-       * DELETE
-       * ==================================================== */}
+      {/* DELETE */}
 
       <section className="surface border border-destructive/25 p-5">
         <h2 className="text-sm font-semibold text-destructive">
