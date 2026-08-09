@@ -6,18 +6,116 @@ import type { Database } from "@/integrations/supabase/types";
 
 /* ============================================================
  * PUBLIC SERVER SUPABASE CLIENT
+ *
+ * IMPORTANT:
+ * Use the exact same environment priority as the main app.
  * ========================================================== */
 
-function getPublicServerSupabase() {  
+function isNewSupabaseApiKey(
+  value: string,
+): boolean {
+  return (
+    value.startsWith(
+      "sb_publishable_",
+    ) ||
+    value.startsWith(
+      "sb_secret_",
+    )
+  );
+}
+
+function createSupabaseFetch(
+  supabaseKey: string,
+): typeof fetch {
+  return (
+    input,
+    init,
+  ) => {
+    const headers =
+      new Headers(
+        typeof Request !==
+          "undefined" &&
+        input instanceof
+          Request
+          ? input.headers
+          : undefined,
+      );
+
+    if (
+      init?.headers
+    ) {
+      new Headers(
+        init.headers,
+      ).forEach(
+        (
+          value,
+          key,
+        ) =>
+          headers.set(
+            key,
+            value,
+          ),
+      );
+    }
+
+    /*
+     * New Supabase publishable keys are opaque strings,
+     * not JWT bearer tokens.
+     */
+    if (
+      isNewSupabaseApiKey(
+        supabaseKey,
+      ) &&
+      headers.get(
+        "Authorization",
+      ) ===
+        `Bearer ${supabaseKey}`
+    ) {
+      headers.delete(
+        "Authorization",
+      );
+    }
+
+    headers.set(
+      "apikey",
+      supabaseKey,
+    );
+
+    return fetch(
+      input,
+      {
+        ...init,
+        headers,
+      },
+    );
+  };
+}
+
+function getPublicServerSupabase() {
+  /*
+   * THIS NOW MATCHES:
+   * src/integrations/supabase/client.ts
+   */
   const url =
-    process.env["VITE_SUPABASE_URL"] ||
-    process.env["SUPABASE_URL"];
+    import.meta.env[
+      "VITE_SUPABASE_URL"
+    ] ||
+    process.env[
+      "SUPABASE_URL"
+    ];
 
- const key =
-    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
-    process.env["SUPABASE_PUBLISHABLE_KEY"];
+  const key =
+    import.meta.env[
+      "VITE_SUPABASE_PUBLISHABLE_KEY"
+    ] ||
+    process.env[
+      "SUPABASE_PUBLISHABLE_KEY"
+    ];
 
-  if (!url || !key) {
+  if (
+    !url ||
+    !key
+  ) {
     throw new Error(
       "Missing Supabase public configuration.",
     );
@@ -27,10 +125,22 @@ function getPublicServerSupabase() {
     url,
     key,
     {
+      global: {
+        fetch:
+          createSupabaseFetch(
+            key,
+          ),
+      },
+
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        storage: undefined,
+        persistSession:
+          false,
+
+        autoRefreshToken:
+          false,
+
+        storage:
+          undefined,
       },
     },
   );
@@ -42,14 +152,22 @@ function getPublicServerSupabase() {
 
 async function rpc<T>(
   name: string,
-  args: Record<string, unknown>,
+
+  args: Record<
+    string,
+    unknown
+  >,
 ): Promise<T> {
   const db =
     getPublicServerSupabase();
 
   const boundRpc =
-    db.rpc.bind(db) as unknown as (
-      functionName: string,
+    db.rpc.bind(
+      db,
+    ) as unknown as (
+      functionName:
+        string,
+
       parameters?: Record<
         string,
         unknown
@@ -65,10 +183,11 @@ async function rpc<T>(
   const {
     data,
     error,
-  } = await boundRpc(
-    name,
-    args,
-  );
+  } =
+    await boundRpc(
+      name,
+      args,
+    );
 
   if (error) {
     throw new Error(
@@ -92,7 +211,8 @@ export interface NextInLineEdition {
 
   name: string;
 
-  edition_number: number;
+  edition_number:
+    number;
 }
 
 export interface NextInLineNfEntry {
@@ -114,7 +234,7 @@ export interface NextInLineNfEntry {
 }
 
 /* ============================================================
- * LOAD COUNTRIES
+ * LOAD ACTIVE EDITION + COUNTRIES
  * ========================================================== */
 
 export const getNextInLineCountries =
@@ -122,20 +242,40 @@ export const getNextInLineCountries =
     method: "GET",
   }).handler(
     async () => {
-      return rpc<{
-        ok: boolean;
+      try {
+        return await rpc<{
+          ok: boolean;
 
-        error?: string;
+          error?: string;
 
-        edition?:
-          NextInLineEdition;
+          edition?:
+            NextInLineEdition;
 
-        countries:
-          NextInLineCountry[];
-      }>(
-        "public_next_in_line_countries",
-        {},
-      );
+          countries:
+            NextInLineCountry[];
+        }>(
+          "public_next_in_line_countries",
+          {},
+        );
+      } catch (
+        error
+      ) {
+        console.error(
+          "Could not load Next in Line countries:",
+          error,
+        );
+
+        return {
+          ok:
+            false as const,
+
+          error:
+            "server",
+
+          countries:
+            [],
+        };
+      }
     },
   );
 
@@ -146,7 +286,9 @@ export const getNextInLineCountries =
 const countrySchema =
   z.object({
     edition_id:
-      z.string().uuid(),
+      z
+        .string()
+        .uuid(),
 
     country:
       z
@@ -161,7 +303,10 @@ export const getNextInLineCountry =
     method: "POST",
   })
     .inputValidator(
-      (data: unknown) =>
+      (
+        data:
+          unknown,
+      ) =>
         countrySchema.parse(
           data,
         ),
@@ -170,48 +315,72 @@ export const getNextInLineCountry =
       async ({
         data,
       }) => {
-        return rpc<{
-          ok: boolean;
+        try {
+          return await rpc<{
+            ok: boolean;
 
-          error?: string;
+            error?: string;
 
-          submission_id?:
-            string;
+            submission_id?:
+              string;
 
-          country?:
-            string;
+            country?:
+              string;
 
-          selection_method?:
-            | "internal"
-            | "national_final"
-            | "unknown";
+            selection_method?:
+              | "internal"
+              | "national_final"
+              | "unknown";
 
-          entries?:
-            NextInLineNfEntry[];
-        }>(
-          "public_next_in_line_country",
-          {
-            _edition_id:
-              data.edition_id,
+            entries?:
+              NextInLineNfEntry[];
+          }>(
+            "public_next_in_line_country",
+            {
+              _edition_id:
+                data.edition_id,
 
-            _country:
-              data.country,
-          },
-        );
+              _country:
+                data.country,
+            },
+          );
+        } catch (
+          error
+        ) {
+          console.error(
+            "Could not load Next in Line country:",
+            error,
+          );
+
+          return {
+            ok:
+              false as const,
+
+            error:
+              "server",
+
+            entries:
+              [],
+          };
+        }
       },
     );
 
 /* ============================================================
- * SUBMIT NEXT IN LINE
+ * SUBMIT
  * ========================================================== */
 
 const submitSchema =
   z.object({
     edition_id:
-      z.string().uuid(),
+      z
+        .string()
+        .uuid(),
 
     source_submission_id:
-      z.string().uuid(),
+      z
+        .string()
+        .uuid(),
 
     country:
       z
@@ -277,7 +446,10 @@ export const submitNextInLine =
     method: "POST",
   })
     .inputValidator(
-      (data: unknown) =>
+      (
+        data:
+          unknown,
+      ) =>
         submitSchema.parse(
           data,
         ),
@@ -290,7 +462,8 @@ export const submitNextInLine =
           return await rpc<{
             ok: boolean;
 
-            error?: string;
+            error?:
+              string;
           }>(
             "submit_next_in_line",
             {
