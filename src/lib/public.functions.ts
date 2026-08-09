@@ -1020,6 +1020,8 @@ export const findMySubmission =
           await rpc<{
             found: boolean;
 
+            can_edit?: boolean;
+
             submission?: {
               id: string;
 
@@ -1036,6 +1038,9 @@ export const findMySubmission =
 
               locked:
                 boolean;
+
+              [key: string]:
+                unknown;
             };
           }>(
             "public_find_my_submission",
@@ -1056,6 +1061,9 @@ export const findMySubmission =
             found:
               false as const,
 
+            can_edit:
+              false,
+
             submission:
               null,
           };
@@ -1065,12 +1073,15 @@ export const findMySubmission =
           found:
             true as const,
 
+          can_edit:
+            result.can_edit ===
+            true,
+
           submission:
             result.submission,
         };
       },
     );
-
 /* ============================================================
  * EDIT LINKS
  * ========================================================== */
