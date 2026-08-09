@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 
 import {
@@ -31,10 +32,15 @@ import {
 } from "@/components/ui/label";
 
 import {
-  checkNextInLineDuplicate,
   getNextInLineCountries,
+  getNextInLineCountry,
   submitNextInLine,
-  type NextInLineCountry,
+  type NextInLineEdition,
+  type NextInLineNfEntry,
+} from "@/lib/nextInLine.functions";
+
+import {
+  checkEntryDuplicate,
 } from "@/lib/public.functions";
 
 import {
@@ -47,7 +53,6 @@ import {
   cn,
 } from "@/lib/utils";
 
-
 export const Route =
   createFileRoute(
     "/next-in-line",
@@ -56,12 +61,14 @@ export const Route =
       NextInLinePage,
   });
 
-
 type DuplicateType =
   | "song"
   | "artist"
   | null;
 
+/* ============================================================
+ * CHOICE BUTTON
+ * ========================================================== */
 
 function Choice({
   selected,
@@ -74,7 +81,7 @@ function Choice({
     () => void;
 
   children:
-    React.ReactNode;
+    ReactNode;
 }) {
   return (
     <button
@@ -95,11 +102,19 @@ function Choice({
   );
 }
 
+/* ============================================================
+ * PAGE
+ * ========================================================== */
 
 function NextInLinePage() {
   const loadCountries =
     useServerFn(
       getNextInLineCountries,
+    );
+
+  const loadCountry =
+    useServerFn(
+      getNextInLineCountry,
     );
 
   const submit =
@@ -109,18 +124,12 @@ function NextInLinePage() {
 
   const checkDuplicate =
     useServerFn(
-      checkNextInLineDuplicate,
+      checkEntryDuplicate,
     );
 
-
-  const [
-    countries,
-    setCountries,
-  ] =
-    useState<
-      NextInLineCountry[]
-    >([]);
-
+  /* ==========================================================
+   * GENERAL STATE
+   * ======================================================== */
 
   const [
     loading,
@@ -128,6 +137,51 @@ function NextInLinePage() {
   ] =
     useState(true);
 
+  const [
+    loadingCountry,
+    setLoadingCountry,
+  ] =
+    useState(false);
+
+  const [
+    submitting,
+    setSubmitting,
+  ] =
+    useState(false);
+
+  const [
+    done,
+    setDone,
+  ] =
+    useState(false);
+
+  const [
+    error,
+    setError,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  /* ==========================================================
+   * EDITION / COUNTRY
+   * ======================================================== */
+
+  const [
+    edition,
+    setEdition,
+  ] =
+    useState<
+      NextInLineEdition | null
+    >(null);
+
+  const [
+    countries,
+    setCountries,
+  ] =
+    useState<string[]>(
+      [],
+    );
 
   const [
     country,
@@ -135,6 +189,34 @@ function NextInLinePage() {
   ] =
     useState("");
 
+  const [
+    sourceSubmissionId,
+    setSourceSubmissionId,
+  ] =
+    useState("");
+
+  const [
+    originalMethod,
+    setOriginalMethod,
+  ] =
+    useState<
+      | "internal"
+      | "national_final"
+      | "unknown"
+      | null
+    >(null);
+
+  const [
+    nfEntries,
+    setNfEntries,
+  ] =
+    useState<
+      NextInLineNfEntry[]
+    >([]);
+
+  /* ==========================================================
+   * PARTICIPATION
+   * ======================================================== */
 
   const [
     participating,
@@ -144,20 +226,21 @@ function NextInLinePage() {
       boolean | null
     >(null);
 
-
   const [
     entryUnknown,
     setEntryUnknown,
   ] =
     useState(false);
 
+  /* ==========================================================
+   * ENTRY
+   * ======================================================== */
 
   const [
-    selectedNfEntryId,
-    setSelectedNfEntryId,
+    selectedNfEntry,
+    setSelectedNfEntry,
   ] =
     useState("");
-
 
   const [
     artist,
@@ -165,13 +248,11 @@ function NextInLinePage() {
   ] =
     useState("");
 
-
   const [
     songTitle,
     setSongTitle,
   ] =
     useState("");
-
 
   const [
     songUrl,
@@ -179,27 +260,27 @@ function NextInLinePage() {
   ] =
     useState("");
 
-
   const [
     previewStart,
     setPreviewStart,
   ] =
     useState("");
 
+  const previewEnd =
+    useMemo(
+      () =>
+        offsetTimestamp(
+          previewStart,
+          25,
+        ),
+      [
+        previewStart,
+      ],
+    );
 
-  const [
-    replacementRequired,
-    setReplacementRequired,
-  ] =
-    useState(false);
-
-
-  const [
-    replacementUrl,
-    setReplacementUrl,
-  ] =
-    useState("");
-
+  /* ==========================================================
+   * DUPLICATES
+   * ======================================================== */
 
   const [
     duplicate,
@@ -209,140 +290,112 @@ function NextInLinePage() {
       null,
     );
 
-
   const [
     checking,
     setChecking,
   ] =
     useState(false);
 
-
-  const [
-    error,
-    setError,
-  ] =
-    useState("");
-
-
-  const [
-    submitting,
-    setSubmitting,
-  ] =
-    useState(false);
-
-
-  const [
-    done,
-    setDone,
-  ] =
-    useState(false);
-
-
   /* ==========================================================
-   * LOAD COUNTRIES
+   * LOAD ACTIVE EDITION + COUNTRIES
    * ======================================================== */
 
   useEffect(() => {
+    let cancelled =
+      false;
+
     void (async () => {
       try {
         const result =
           await loadCountries();
 
+        if (
+          cancelled
+        ) {
+          return;
+        }
+
+        if (
+          !result.ok ||
+          !result.edition
+        ) {
+          setError(
+            "There is no active Solaris Song Contest edition.",
+          );
+
+          return;
+        }
+
+        setEdition(
+          result.edition,
+        );
+
         setCountries(
-          result,
+          (
+            result.countries ??
+            []
+          ).map(
+            (
+              item,
+            ) =>
+              item.country,
+          ),
         );
       } catch (
         loadError
       ) {
         console.error(
+          "Could not load Next in Line:",
           loadError,
         );
 
-        setError(
-          "The Next in Line form could not be loaded.",
-        );
+        if (
+          !cancelled
+        ) {
+          setError(
+            "The Next in Line form could not be loaded.",
+          );
+        }
       } finally {
-        setLoading(
-          false,
-        );
+        if (
+          !cancelled
+        ) {
+          setLoading(
+            false,
+          );
+        }
       }
     })();
+
+    return () => {
+      cancelled =
+        true;
+    };
   }, [
     loadCountries,
   ]);
 
-
-  const selectedCountry =
-    useMemo(
-      () =>
-        countries.find(
-          (
-            item,
-          ) =>
-            item.country ===
-            country,
-        ) ??
-        null,
-
-      [
-        countries,
-        country,
-      ],
-    );
-
-
-  const isNationalFinal =
-    selectedCountry
-      ?.selection_method ===
-      "national_final" &&
-    selectedCountry
-      .nf_entries.length >
-      0;
-
-
-  const selectedNfEntry =
-    useMemo(
-      () =>
-        selectedCountry
-          ?.nf_entries.find(
-            (
-              entry,
-            ) =>
-              entry.id ===
-              selectedNfEntryId,
-          ) ??
-        null,
-
-      [
-        selectedCountry,
-        selectedNfEntryId,
-      ],
-    );
-
-
-  const previewEnd =
-    useMemo(
-      () =>
-        offsetTimestamp(
-          previewStart,
-          25,
-        ),
-
-      [
-        previewStart,
-      ],
-    );
-
-
   /* ==========================================================
-   * RESET WHEN COUNTRY CHANGES
+   * CHANGE COUNTRY
    * ======================================================== */
 
-  function changeCountry(
+  async function chooseCountry(
     value: string,
   ) {
     setCountry(
       value,
+    );
+
+    setSourceSubmissionId(
+      "",
+    );
+
+    setOriginalMethod(
+      null,
+    );
+
+    setNfEntries(
+      [],
     );
 
     setParticipating(
@@ -353,7 +406,7 @@ function NextInLinePage() {
       false,
     );
 
-    setSelectedNfEntryId(
+    setSelectedNfEntry(
       "",
     );
 
@@ -373,40 +426,94 @@ function NextInLinePage() {
       "",
     );
 
-    setReplacementRequired(
-      false,
-    );
-
-    setReplacementUrl(
-      "",
-    );
-
     setDuplicate(
       null,
     );
 
     setError(
-      "",
+      null,
     );
+
+    if (
+      !edition ||
+      !value
+    ) {
+      return;
+    }
+
+    setLoadingCountry(
+      true,
+    );
+
+    try {
+      const result =
+        await loadCountry({
+          data: {
+            edition_id:
+              edition.id,
+
+            country:
+              value,
+          },
+        });
+
+      if (
+        !result.ok ||
+        !result.submission_id
+      ) {
+        setError(
+          "That country could not be loaded.",
+        );
+
+        return;
+      }
+
+      setSourceSubmissionId(
+        result.submission_id,
+      );
+
+      setOriginalMethod(
+        result.selection_method ??
+          "unknown",
+      );
+
+      setNfEntries(
+        result.entries ??
+          [],
+      );
+    } catch (
+      loadError
+    ) {
+      console.error(
+        "Country load failed:",
+        loadError,
+      );
+
+      setError(
+        "That country's entry information could not be loaded.",
+      );
+    } finally {
+      setLoadingCountry(
+        false,
+      );
+    }
   }
 
-
   /* ==========================================================
-   * INSTANT DUPLICATE CHECK
+   * LIVE DUPLICATE CHECK
    *
-   * Only needed for typed internal entries.
-   *
-   * Existing NF entries already belong to this country's
-   * normal submission and should not block themselves.
+   * Only applies when typing a NEW internal Next in Line entry.
+   * Existing NF entries must not flag themselves.
    * ======================================================== */
 
   useEffect(() => {
     if (
-      !selectedCountry ||
-      isNationalFinal ||
-      entryUnknown ||
       participating !==
-        true
+        true ||
+      entryUnknown ||
+      originalMethod ===
+        "national_final" ||
+      !edition
     ) {
       setDuplicate(
         null,
@@ -414,7 +521,6 @@ function NextInLinePage() {
 
       return;
     }
-
 
     const cleanArtist =
       artist.trim();
@@ -424,7 +530,6 @@ function NextInLinePage() {
 
     const cleanUrl =
       songUrl.trim();
-
 
     if (
       cleanArtist.length <
@@ -441,10 +546,8 @@ function NextInLinePage() {
       return;
     }
 
-
     let cancelled =
       false;
-
 
     const timer =
       window.setTimeout(
@@ -459,13 +562,10 @@ function NextInLinePage() {
                 await checkDuplicate({
                   data: {
                     edition_id:
-                      selectedCountry.edition_id,
+                      edition.id,
 
-                    source_submission_id:
-                      selectedCountry.source_submission_id,
-
-                    country:
-                      selectedCountry.country,
+                    submission_id:
+                      null,
 
                     artist:
                       cleanArtist,
@@ -478,13 +578,11 @@ function NextInLinePage() {
                   },
                 });
 
-
               if (
                 cancelled
               ) {
                 return;
               }
-
 
               if (
                 result.ok &&
@@ -502,6 +600,7 @@ function NextInLinePage() {
               duplicateError
             ) {
               console.error(
+                "Duplicate check failed:",
                 duplicateError,
               );
             } finally {
@@ -515,10 +614,8 @@ function NextInLinePage() {
             }
           })();
         },
-
         500,
       );
-
 
     return () => {
       cancelled =
@@ -529,18 +626,21 @@ function NextInLinePage() {
       );
     };
   }, [
+    participating,
+    entryUnknown,
+    originalMethod,
+    edition,
     artist,
     songTitle,
     songUrl,
-    selectedCountry,
-    isNationalFinal,
-    entryUnknown,
-    participating,
     checkDuplicate,
   ]);
 
+  /* ==========================================================
+   * DUPLICATE MESSAGE
+   * ======================================================== */
 
-  function duplicateMessage() {
+  function duplicateText() {
     if (
       duplicate ===
       "song"
@@ -548,39 +648,36 @@ function NextInLinePage() {
       return "This song has already been used in Solaris Song Contest and cannot be submitted again.";
     }
 
-
     if (
       duplicate ===
       "artist"
     ) {
-      return "This artist has already been submitted by another country in this edition.";
+      return "This artist has already been submitted for another country in this edition.";
     }
-
 
     return "";
   }
-
 
   /* ==========================================================
    * SUBMIT
    * ======================================================== */
 
-  async function handleSubmit() {
+  async function send() {
     setError(
-      "",
+      null,
     );
 
-
     if (
-      !selectedCountry
+      !edition ||
+      !country ||
+      !sourceSubmissionId
     ) {
       setError(
-        "Select your country.",
+        "Choose your country first.",
       );
 
       return;
     }
-
 
     if (
       participating ===
@@ -592,7 +689,6 @@ function NextInLinePage() {
 
       return;
     }
-
 
     /* ========================================================
      * NO
@@ -606,19 +702,17 @@ function NextInLinePage() {
         true,
       );
 
-
       try {
         const result =
           await submit({
             data: {
               edition_id:
-                selectedCountry.edition_id,
+                edition.id,
 
               source_submission_id:
-                selectedCountry.source_submission_id,
+                sourceSubmissionId,
 
-              country:
-                selectedCountry.country,
+              country,
 
               participating:
                 false,
@@ -627,7 +721,7 @@ function NextInLinePage() {
                 true,
 
               selection_type:
-                "unknown",
+                "none",
 
               national_final_entry_id:
                 null,
@@ -646,15 +740,8 @@ function NextInLinePage() {
 
               preview_end:
                 "",
-
-              replacement_video_required:
-                false,
-
-              replacement_video_url:
-                "",
             },
           });
-
 
         if (
           result.ok
@@ -666,9 +753,10 @@ function NextInLinePage() {
           return;
         }
 
-
         setError(
-          "The response could not be submitted.",
+          errorMessage(
+            result.error,
+          ),
         );
       } finally {
         setSubmitting(
@@ -676,13 +764,11 @@ function NextInLinePage() {
         );
       }
 
-
       return;
     }
 
-
     /* ========================================================
-     * YES, BUT ENTRY UNKNOWN
+     * YES, ENTRY UNKNOWN
      * ====================================================== */
 
     if (
@@ -692,19 +778,17 @@ function NextInLinePage() {
         true,
       );
 
-
       try {
         const result =
           await submit({
             data: {
               edition_id:
-                selectedCountry.edition_id,
+                edition.id,
 
               source_submission_id:
-                selectedCountry.source_submission_id,
+                sourceSubmissionId,
 
-              country:
-                selectedCountry.country,
+              country,
 
               participating:
                 true,
@@ -732,15 +816,8 @@ function NextInLinePage() {
 
               preview_end:
                 "",
-
-              replacement_video_required:
-                false,
-
-              replacement_video_url:
-                "",
             },
           });
-
 
         if (
           result.ok
@@ -752,9 +829,10 @@ function NextInLinePage() {
           return;
         }
 
-
         setError(
-          "The response could not be submitted.",
+          errorMessage(
+            result.error,
+          ),
         );
       } finally {
         setSubmitting(
@@ -762,36 +840,75 @@ function NextInLinePage() {
         );
       }
 
-
       return;
     }
 
-
     /* ========================================================
-     * KNOWN NF ENTRY
+     * KNOWN ENTRY
      * ====================================================== */
 
+    let selectionType:
+      | "internal"
+      | "national_final";
+
+    let finalArtist =
+      artist.trim();
+
+    let finalSong =
+      songTitle.trim();
+
+    let finalUrl =
+      songUrl.trim();
+
+    let nfEntryId:
+      | string
+      | null =
+      null;
+
     if (
-      isNationalFinal &&
-      !selectedNfEntry
+      originalMethod ===
+      "national_final"
     ) {
-      setError(
-        "Select one of your National Final entries.",
-      );
+      selectionType =
+        "national_final";
 
-      return;
-    }
+      const selected =
+        nfEntries.find(
+          (
+            entry,
+          ) =>
+            entry.id ===
+            selectedNfEntry,
+        );
 
+      if (!selected) {
+        setError(
+          "Choose one of your National Final entries.",
+        );
 
-    /* ========================================================
-     * KNOWN INTERNAL ENTRY
-     * ====================================================== */
+        return;
+      }
 
-    if (
-      !isNationalFinal
-    ) {
+      nfEntryId =
+        selected.id;
+
+      finalArtist =
+        selected.artist ??
+        "";
+
+      finalSong =
+        selected.song_title ??
+        "";
+
+      finalUrl =
+        selected.song_url ??
+        "";
+    } else {
+      selectionType =
+        "internal";
+
       if (
-        !artist.trim()
+        !finalArtist
       ) {
         setError(
           "Enter the artist.",
@@ -800,9 +917,8 @@ function NextInLinePage() {
         return;
       }
 
-
       if (
-        !songTitle.trim()
+        !finalSong
       ) {
         setError(
           "Enter the song title.",
@@ -811,35 +927,32 @@ function NextInLinePage() {
         return;
       }
 
-
       if (
-        !songUrl.trim() ||
+        !finalUrl ||
         !isValidUrl(
-          songUrl,
+          finalUrl,
         )
       ) {
         setError(
-          "Enter a valid song link.",
+          "Enter a valid song link starting with https://",
         );
 
         return;
       }
 
-
       if (
         duplicate
       ) {
         setError(
-          duplicateMessage(),
+          duplicateText(),
         );
 
         return;
       }
     }
 
-
     /* ========================================================
-     * PREVIEW
+     * 25 SECOND PREVIEW
      * ====================================================== */
 
     if (
@@ -849,62 +962,37 @@ function NextInLinePage() {
       null
     ) {
       setError(
-        "Enter the 25-second preview start as MM:SS, for example 01:12.",
+        "Enter the preview start as MM:SS, for example 01:12.",
       );
 
       return;
     }
-
 
     if (
       !previewEnd
     ) {
       setError(
-        "The preview timestamp is not valid.",
+        "The preview timestamp is invalid.",
       );
 
       return;
     }
-
-
-    /* ========================================================
-     * REPLACEMENT VIDEO
-     * ====================================================== */
-
-    if (
-      replacementRequired &&
-      (
-        !replacementUrl.trim() ||
-        !isValidUrl(
-          replacementUrl,
-        )
-      )
-    ) {
-      setError(
-        "Enter a valid replacement video link.",
-      );
-
-      return;
-    }
-
 
     setSubmitting(
       true,
     );
-
 
     try {
       const result =
         await submit({
           data: {
             edition_id:
-              selectedCountry.edition_id,
+              edition.id,
 
             source_submission_id:
-              selectedCountry.source_submission_id,
+              sourceSubmissionId,
 
-            country:
-              selectedCountry.country,
+            country,
 
             participating:
               true,
@@ -913,49 +1001,27 @@ function NextInLinePage() {
               false,
 
             selection_type:
-              isNationalFinal
-                ? "national_final"
-                : "internal",
+              selectionType,
 
             national_final_entry_id:
-              isNationalFinal
-                ? selectedNfEntryId
-                : null,
+              nfEntryId,
 
             artist:
-              isNationalFinal
-                ? selectedNfEntry?.artist ??
-                  ""
-                : artist,
+              finalArtist,
 
             song_title:
-              isNationalFinal
-                ? selectedNfEntry?.song_title ??
-                  ""
-                : songTitle,
+              finalSong,
 
             song_url:
-              isNationalFinal
-                ? selectedNfEntry?.song_url ??
-                  ""
-                : songUrl,
+              finalUrl,
 
             preview_start:
               previewStart,
 
             preview_end:
               previewEnd,
-
-            replacement_video_required:
-              replacementRequired,
-
-            replacement_video_url:
-              replacementRequired
-                ? replacementUrl
-                : "",
           },
         });
-
 
       if (
         result.ok
@@ -967,45 +1033,10 @@ function NextInLinePage() {
         return;
       }
 
-
-      if (
-        result.error ===
-        "duplicate_song"
-      ) {
-        setError(
-          "This song has already been used in Solaris Song Contest and cannot be submitted again.",
-        );
-
-        return;
-      }
-
-
-      if (
-        result.error ===
-        "duplicate_artist"
-      ) {
-        setError(
-          "This artist has already been submitted by another country in this edition.",
-        );
-
-        return;
-      }
-
-
-      if (
-        result.error ===
-        "invalid_nf_entry"
-      ) {
-        setError(
-          "That National Final entry does not belong to this country.",
-        );
-
-        return;
-      }
-
-
       setError(
-        "The response could not be submitted.",
+        errorMessage(
+          result.error,
+        ),
       );
     } finally {
       setSubmitting(
@@ -1013,7 +1044,6 @@ function NextInLinePage() {
       );
     }
   }
-
 
   /* ==========================================================
    * LOADING
@@ -1023,7 +1053,7 @@ function NextInLinePage() {
     loading
   ) {
     return (
-      <main className="mx-auto min-h-screen w-full max-w-2xl px-4 py-10 sm:py-16">
+      <main className="mx-auto min-h-screen w-full max-w-xl px-4 py-10 sm:py-16">
         <div className="surface p-8 text-center">
           <p className="text-sm text-muted-foreground">
             Loading Next
@@ -1034,7 +1064,6 @@ function NextInLinePage() {
     );
   }
 
-
   /* ==========================================================
    * SUCCESS
    * ======================================================== */
@@ -1043,25 +1072,23 @@ function NextInLinePage() {
     done
   ) {
     return (
-      <main className="mx-auto min-h-screen w-full max-w-2xl px-4 py-10 sm:py-16">
+      <main className="mx-auto min-h-screen w-full max-w-xl px-4 py-10 sm:py-16">
         <div className="surface p-8 text-center">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-success/15 text-success">
             <Check className="size-6" />
           </div>
-
 
           <h1 className="mt-5 text-2xl font-semibold">
             Response
             submitted
           </h1>
 
-
           <p className="mt-2 text-sm text-muted-foreground">
             Your Next in
-            Line response
-            has been saved.
+            Line response for{" "}
+            {country} has
+            been received.
           </p>
-
 
           <Button
             className="mt-6"
@@ -1077,13 +1104,12 @@ function NextInLinePage() {
     );
   }
 
-
   /* ==========================================================
    * FORM
    * ======================================================== */
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-2xl px-4 py-10 sm:py-16">
+    <main className="mx-auto min-h-screen w-full max-w-xl px-4 py-10 sm:py-16">
       <Link
         to="/"
         className="mb-7 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -1093,20 +1119,17 @@ function NextInLinePage() {
         Confirmations
       </Link>
 
-
       <header className="mb-8 text-center">
         <p className="text-xs uppercase tracking-widest text-muted-foreground">
           Solaris Song
           Contest
         </p>
 
-
-        <h1 className="text-solar mt-2 text-4xl font-normal sm:text-6xl">
+        <h1 className="text-solar mt-2 text-4xl font-normal sm:text-5xl">
           Next in Line
         </h1>
 
-
-        <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground">
+        <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
           Tell us whether
           your delegation
           would participate
@@ -1114,19 +1137,21 @@ function NextInLinePage() {
           becomes
           available.
         </p>
+
+        {edition ? (
+          <p className="mt-2 text-xs uppercase tracking-widest text-muted-foreground">
+            {edition.name}
+          </p>
+        ) : null}
       </header>
 
-
       <div className="surface space-y-7 p-5 sm:p-7">
-        {/* ====================================================
-         * COUNTRY
-         * ================================================== */}
+        {/* COUNTRY */}
 
         <div className="space-y-2">
           <Label>
             Country
           </Label>
-
 
           <select
             value={
@@ -1135,7 +1160,7 @@ function NextInLinePage() {
             onChange={(
               event,
             ) =>
-              changeCountry(
+              void chooseCountry(
                 event.target
                   .value,
               )
@@ -1147,34 +1172,35 @@ function NextInLinePage() {
               country
             </option>
 
-
             {countries.map(
               (
                 item,
               ) => (
                 <option
                   key={
-                    item.country
+                    item
                   }
                   value={
-                    item.country
+                    item
                   }
                 >
-                  {
-                    item.country
-                  }
+                  {item}
                 </option>
               ),
             )}
           </select>
         </div>
 
+        {loadingCountry ? (
+          <p className="text-sm text-muted-foreground">
+            Loading
+            country…
+          </p>
+        ) : null}
 
-        {selectedCountry ? (
+        {sourceSubmissionId ? (
           <>
-            {/* ================================================
-             * PARTICIPATION
-             * ============================================== */}
+            {/* PARTICIPATION */}
 
             <div className="space-y-3">
               <Label>
@@ -1185,7 +1211,6 @@ function NextInLinePage() {
                 place becomes
                 available?
               </Label>
-
 
               <div className="grid grid-cols-2 gap-2">
                 <Choice
@@ -1199,13 +1224,12 @@ function NextInLinePage() {
                     );
 
                     setError(
-                      "",
+                      null,
                     );
                   }}
                 >
                   Yes
                 </Choice>
-
 
                 <Choice
                   selected={
@@ -1218,7 +1242,7 @@ function NextInLinePage() {
                     );
 
                     setError(
-                      "",
+                      null,
                     );
                   }}
                 >
@@ -1227,10 +1251,7 @@ function NextInLinePage() {
               </div>
             </div>
 
-
-            {/* ================================================
-             * YES
-             * ============================================== */}
+            {/* YES */}
 
             {participating ===
             true ? (
@@ -1243,7 +1264,6 @@ function NextInLinePage() {
                     Line entry?
                   </Label>
 
-
                   <div className="grid grid-cols-2 gap-2">
                     <Choice
                       selected={
@@ -1255,13 +1275,12 @@ function NextInLinePage() {
                         );
 
                         setError(
-                          "",
+                          null,
                         );
                       }}
                     >
                       Yes
                     </Choice>
-
 
                     <Choice
                       selected={
@@ -1272,11 +1291,11 @@ function NextInLinePage() {
                           true,
                         );
 
-                        setError(
-                          "",
+                        setDuplicate(
+                          null,
                         );
 
-                        setDuplicate(
+                        setError(
                           null,
                         );
                       }}
@@ -1287,13 +1306,11 @@ function NextInLinePage() {
                   </div>
                 </div>
 
-
-                {/* ============================================
-                 * NATIONAL FINAL
-                 * ========================================== */}
+                {/* NF ENTRY */}
 
                 {!entryUnknown &&
-                isNationalFinal ? (
+                originalMethod ===
+                  "national_final" ? (
                   <div className="space-y-3">
                     <div>
                       <Label>
@@ -1302,74 +1319,84 @@ function NextInLinePage() {
                         Final entry
                       </Label>
 
-
                       <p className="mt-1 text-xs text-muted-foreground">
-                        These are
+                        Choose from
                         the entries
-                        your country
                         already
                         submitted
-                        for this
-                        edition.
+                        for your
+                        National
+                        Final.
                       </p>
                     </div>
 
-
-                    <div className="grid gap-2">
-                      {selectedCountry.nf_entries.map(
-                        (
-                          entry,
-                        ) => (
-                          <Choice
-                            key={
-                              entry.id
-                            }
-                            selected={
-                              selectedNfEntryId ===
-                              entry.id
-                            }
-                            onClick={() => {
-                              setSelectedNfEntryId(
-                                entry.id,
-                              );
-
-                              setError(
-                                "",
-                              );
-                            }}
-                          >
-                            <span className="block font-medium text-foreground">
-                              {
-                                entry.artist
+                    {nfEntries.length >
+                    0 ? (
+                      <div className="grid gap-2">
+                        {nfEntries.map(
+                          (
+                            entry,
+                          ) => (
+                            <Choice
+                              key={
+                                entry.id
                               }
-                            </span>
-
-
-                            <span className="mt-0.5 block text-xs">
-                              {
-                                entry.song_title
+                              selected={
+                                selectedNfEntry ===
+                                entry.id
                               }
-                            </span>
-                          </Choice>
-                        ),
-                      )}
-                    </div>
+                              onClick={() => {
+                                setSelectedNfEntry(
+                                  entry.id,
+                                );
+
+                                setError(
+                                  null,
+                                );
+                              }}
+                            >
+                              <span className="block font-medium text-foreground">
+                                {entry.artist ??
+                                  "Unknown artist"}
+                              </span>
+
+                              <span className="mt-0.5 block text-xs">
+                                {entry.song_title ??
+                                  "Unknown song"}
+                              </span>
+                            </Choice>
+                          ),
+                        )}
+                      </div>
+                    ) : (
+                      <p className="rounded-lg border border-border bg-secondary/30 px-3 py-3 text-sm text-muted-foreground">
+                        No National
+                        Final
+                        entries are
+                        available.
+                        Choose
+                        “I don't
+                        know yet”
+                        above if
+                        your entry
+                        has not
+                        been
+                        decided.
+                      </p>
+                    )}
                   </div>
                 ) : null}
 
-
-                {/* ============================================
-                 * INTERNAL
-                 * ========================================== */}
+                {/* INTERNAL / UNKNOWN SELECTION */}
 
                 {!entryUnknown &&
-                !isNationalFinal ? (
+                originalMethod !==
+                  "national_final" ? (
                   <div className="space-y-5">
                     <div className="space-y-2">
                       <Label>
                         Artist
                       </Label>
-
 
                       <Input
                         value={
@@ -1384,18 +1411,16 @@ function NextInLinePage() {
                           );
 
                           setError(
-                            "",
+                            null,
                           );
                         }}
                       />
                     </div>
 
-
                     <div className="space-y-2">
                       <Label>
                         Song title
                       </Label>
-
 
                       <Input
                         value={
@@ -1410,18 +1435,16 @@ function NextInLinePage() {
                           );
 
                           setError(
-                            "",
+                            null,
                           );
                         }}
                       />
                     </div>
 
-
                     <div className="space-y-2">
                       <Label>
                         Song link
                       </Label>
-
 
                       <Input
                         value={
@@ -1436,13 +1459,12 @@ function NextInLinePage() {
                           );
 
                           setError(
-                            "",
+                            null,
                           );
                         }}
                         placeholder="https://..."
                       />
                     </div>
-
 
                     {checking ? (
                       <p className="text-xs text-muted-foreground">
@@ -1451,178 +1473,81 @@ function NextInLinePage() {
                       </p>
                     ) : null}
 
-
                     {duplicate ? (
-                      <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                      <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
                         {
-                          duplicateMessage()
+                          duplicateText()
                         }
                       </p>
                     ) : null}
                   </div>
                 ) : null}
 
-
-                {/* ============================================
-                 * KNOWN ENTRY DETAILS
-                 * ========================================== */}
+                {/* PREVIEW */}
 
                 {!entryUnknown ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label>
-                        25-second
-                        preview
-                      </Label>
+                  <div className="space-y-2">
+                    <Label>
+                      25-second
+                      preview
+                      start
+                    </Label>
 
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      Enter where
+                      the
+                      25-second
+                      preview
+                      should
+                      begin.
+                    </p>
 
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        Enter the
-                        point where
-                        your
-                        25-second
-                        preview
-                        should
-                        begin.
-                      </p>
+                    <Input
+                      value={
+                        previewStart
+                      }
+                      onChange={(
+                        event,
+                      ) => {
+                        setPreviewStart(
+                          event.target
+                            .value,
+                        );
 
+                        setError(
+                          null,
+                        );
+                      }}
+                      inputMode="text"
+                      placeholder="MM:SS — e.g. 01:12"
+                    />
 
-                      <Input
-                        value={
+                    {previewEnd ? (
+                      <p className="text-xs font-medium text-accent">
+                        Preview:{" "}
+                        {
                           previewStart
                         }
-                        onChange={(
-                          event,
-                        ) => {
-                          setPreviewStart(
-                            event.target
-                              .value,
-                          );
-
-                          setError(
-                            "",
-                          );
-                        }}
-                        inputMode="text"
-                        placeholder="MM:SS — e.g. 01:12"
-                      />
-
-
-                      {previewEnd ? (
-                        <p className="text-xs font-medium text-accent">
-                          Preview:{" "}
-                          {
-                            previewStart
-                          }
-                          {" – "}
-                          {
-                            previewEnd
-                          }
-                        </p>
-                      ) : null}
-                    </div>
-
-
-                    <div className="space-y-3">
-                      <Label>
-                        Do you
-                        need a
-                        replacement
-                        video?
-                      </Label>
-
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <Choice
-                          selected={
-                            replacementRequired
-                          }
-                          onClick={() => {
-                            setReplacementRequired(
-                              true,
-                            );
-
-                            setError(
-                              "",
-                            );
-                          }}
-                        >
-                          Yes
-                        </Choice>
-
-
-                        <Choice
-                          selected={
-                            !replacementRequired
-                          }
-                          onClick={() => {
-                            setReplacementRequired(
-                              false,
-                            );
-
-                            setReplacementUrl(
-                              "",
-                            );
-
-                            setError(
-                              "",
-                            );
-                          }}
-                        >
-                          No
-                        </Choice>
-                      </div>
-                    </div>
-
-
-                    {replacementRequired ? (
-                      <div className="space-y-2">
-                        <Label>
-                          Replacement
-                          video link
-                        </Label>
-
-
-                        <Input
-                          value={
-                            replacementUrl
-                          }
-                          onChange={(
-                            event,
-                          ) => {
-                            setReplacementUrl(
-                              event.target
-                                .value,
-                            );
-
-                            setError(
-                              "",
-                            );
-                          }}
-                          placeholder="https://..."
-                        />
-                      </div>
+                        {" – "}
+                        {
+                          previewEnd
+                        }
+                      </p>
                     ) : null}
-                  </>
+                  </div>
                 ) : null}
               </>
             ) : null}
 
-
-            {/* ================================================
-             * ERROR
-             * ============================================== */}
+            {/* ERROR */}
 
             {error ? (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {error}
-              </div>
+              </p>
             ) : null}
 
-
-            {/* ================================================
-             * SUBMIT
-             * ============================================== */}
+            {/* SUBMIT */}
 
             {participating !==
             null ? (
@@ -1634,7 +1559,7 @@ function NextInLinePage() {
                   checking
                 }
                 onClick={() =>
-                  void handleSubmit()
+                  void send()
                 }
               >
                 {submitting
@@ -1647,14 +1572,52 @@ function NextInLinePage() {
           </>
         ) : null}
 
-
-        {!selectedCountry &&
+        {!sourceSubmissionId &&
         error ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {error}
-          </div>
+          </p>
         ) : null}
       </div>
     </main>
   );
+}
+
+/* ============================================================
+ * SERVER ERROR COPY
+ * ========================================================== */
+
+function errorMessage(
+  error:
+    | string
+    | undefined,
+) {
+  switch (error) {
+    case "already_submitted":
+      return "This country has already submitted a Next in Line response.";
+
+    case "duplicate_song":
+      return "This song has already been used in Solaris Song Contest and cannot be submitted again.";
+
+    case "duplicate_artist":
+      return "This artist has already been submitted for another country in this edition.";
+
+    case "invalid_nf_entry":
+      return "That National Final entry is not valid for this country.";
+
+    case "edition_closed":
+      return "The Next in Line form is not currently available for this edition.";
+
+    case "invalid_country":
+      return "That country is not available for this edition.";
+
+    case "entry_required":
+      return "Artist, song title and song link are required.";
+
+    case "preview_required":
+      return "A 25-second preview timestamp is required.";
+
+    default:
+      return "Something went wrong while submitting. Please try again.";
+  }
 }
