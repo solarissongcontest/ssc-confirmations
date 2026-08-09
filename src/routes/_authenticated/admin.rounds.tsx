@@ -32,6 +32,10 @@ import {
 } from "@/lib/admin.functions";
 
 import {
+  setRoundEditing,
+} from "@/lib/editing.functions";
+
+import {
   useEditions,
   useScope,
   useSubmissions,
@@ -85,7 +89,8 @@ const EMPTY = {
 
   closes_at: "",
 
-  response_limit: "",
+  response_limit:
+    "",
 };
 
 function RoundsPage() {
@@ -111,6 +116,11 @@ function RoundsPage() {
   const setStatus =
     useServerFn(
       setRoundStatus,
+    );
+
+  const setEditing =
+    useServerFn(
+      setRoundEditing,
     );
 
   const remove =
@@ -139,7 +149,9 @@ function RoundsPage() {
       typeof EMPTY & {
         id?: string;
       }
-    >(EMPTY);
+    >(
+      EMPTY,
+    );
 
   const [
     error,
@@ -271,28 +283,20 @@ function RoundsPage() {
 
   return (
     <div className="space-y-6">
-      {/* ======================================================
-       * HEADER
-       * ==================================================== */}
-
       <header>
         <h1 className="text-2xl font-semibold">
           Submission rounds
         </h1>
 
         <p className="mt-1 text-sm text-muted-foreground">
-          Open, close and
-          limit each round.
-          Rounds close
-          automatically when
-          the limit is
-          reached.
+          Round availability
+          controls new
+          submissions.
+          Editing is
+          controlled
+          separately.
         </p>
       </header>
-
-      {/* ======================================================
-       * EDITION
-       * ==================================================== */}
 
       <ScopePicker
         scope={
@@ -306,9 +310,7 @@ function RoundsPage() {
         }
       />
 
-      {/* ======================================================
-       * NEXT IN LINE
-       * ==================================================== */}
+      {/* NEXT IN LINE */}
 
       <section className="surface overflow-hidden">
         <div className="border-b border-border/60 p-5">
@@ -317,7 +319,7 @@ function RoundsPage() {
               <ListPlus className="size-5" />
             </div>
 
-            <div className="min-w-0">
+            <div>
               <p className="text-xs uppercase tracking-widest text-accent">
                 Next in Line
               </p>
@@ -326,95 +328,29 @@ function RoundsPage() {
                 Next in Line
                 submissions
               </h2>
-
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Separate form
-                for delegations
-                that could take
-                an available
-                place in the
-                selected
-                edition.
-              </p>
             </div>
           </div>
         </div>
 
-        <div className="space-y-4 p-5">
-          {scope.edition ? (
-            <>
-              <div className="rounded-xl border border-border/70 bg-secondary/25 px-4 py-3">
-                <p className="text-xs text-muted-foreground">
-                  Current
-                  edition
-                </p>
+        <div className="p-5">
+          <Button
+            asChild
+          >
+            <a
+              href="/next-in-line"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLink className="size-4" />
 
-                <p className="mt-1 font-medium">
-                  {
-                    scope.edition
-                      .name
-                  }
-                </p>
-              </div>
-
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                The Next in
-                Line form uses
-                the countries
-                and National
-                Final entries
-                already
-                submitted for
-                this edition.
-                It is separate
-                from the normal
-                confirmation
-                round limits.
-              </p>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  asChild
-                >
-                  <a
-                    href="/next-in-line"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <ExternalLink className="size-4" />
-
-                    Open Next in
-                    Line form
-                  </a>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  asChild
-                >
-                  <a
-                    href="/next-in-line"
-                  >
-                    View form
-                  </a>
-                </Button>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Create or
-              select an
-              edition before
-              using Next in
-              Line.
-            </p>
-          )}
+              Open Next in
+              Line form
+            </a>
+          </Button>
         </div>
       </section>
 
-      {/* ======================================================
-       * CREATE / EDIT ROUND
-       * ==================================================== */}
+      {/* NEW ROUND */}
 
       <div className="surface space-y-4 p-5">
         <h2 className="text-sm font-semibold">
@@ -441,8 +377,7 @@ function RoundsPage() {
                   ...form,
 
                   name:
-                    event
-                      .target
+                    event.target
                       .value,
                 })
               }
@@ -452,7 +387,6 @@ function RoundsPage() {
           <div className="space-y-2">
             <Label>
               Response limit
-              (optional)
             </Label>
 
             <Input
@@ -467,8 +401,7 @@ function RoundsPage() {
                   ...form,
 
                   response_limit:
-                    event
-                      .target
+                    event.target
                       .value,
                 })
               }
@@ -478,7 +411,6 @@ function RoundsPage() {
           <div className="space-y-2">
             <Label>
               Opens at
-              (optional)
             </Label>
 
             <Input
@@ -493,8 +425,7 @@ function RoundsPage() {
                   ...form,
 
                   opens_at:
-                    event
-                      .target
+                    event.target
                       .value,
                 })
               }
@@ -504,7 +435,6 @@ function RoundsPage() {
           <div className="space-y-2">
             <Label>
               Closes at
-              (optional)
             </Label>
 
             <Input
@@ -519,16 +449,13 @@ function RoundsPage() {
                   ...form,
 
                   closes_at:
-                    event
-                      .target
+                    event.target
                       .value,
                 })
               }
             />
           </div>
         </div>
-
-        {/* STATUS */}
 
         <div className="flex flex-wrap gap-2">
           {STATUSES.map(
@@ -553,7 +480,7 @@ function RoundsPage() {
                   form.status ===
                     status
                     ? "border-primary bg-primary/15 text-foreground"
-                    : "border-border text-muted-foreground hover:text-foreground",
+                    : "border-border text-muted-foreground",
                 )}
               >
                 {status.replace(
@@ -566,8 +493,10 @@ function RoundsPage() {
         </div>
 
         {error ? (
-          <p className="text-xs font-medium text-destructive">
-            {error}
+          <p className="text-xs text-destructive">
+            {
+              error
+            }
           </p>
         ) : null}
 
@@ -597,9 +526,7 @@ function RoundsPage() {
         </div>
       </div>
 
-      {/* ======================================================
-       * EXISTING ROUNDS
-       * ==================================================== */}
+      {/* EXISTING */}
 
       <div className="space-y-3">
         {scope.rounds.map(
@@ -623,7 +550,7 @@ function RoundsPage() {
                 key={
                   round.id
                 }
-                className="surface p-5"
+                className="surface space-y-4 p-5"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -642,11 +569,10 @@ function RoundsPage() {
                       {
                         count
                       }
-
                       {round.response_limit
                         ? ` / ${round.response_limit}`
-                        : ""}{" "}
-                      responses
+                        : ""}
+                      {" responses"}
                     </p>
 
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -782,6 +708,86 @@ function RoundsPage() {
                     </Button>
                   </div>
                 </div>
+
+                {/* EDITING */}
+
+                <div className="rounded-xl border border-border bg-secondary/25 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        Existing
+                        response
+                        editing
+                      </p>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Works even
+                        when this
+                        round is
+                        closed or
+                        full.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant={
+                          round.editing_enabled
+                            ? "default"
+                            : "outline"
+                        }
+                        onClick={async () => {
+                          await setEditing({
+                            data: {
+                              round_id:
+                                round.id,
+
+                              enabled:
+                                true,
+                            },
+                          });
+
+                          refresh();
+
+                          toast.success(
+                            "Editing opened",
+                          );
+                        }}
+                      >
+                        Open
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant={
+                          !round.editing_enabled
+                            ? "default"
+                            : "outline"
+                        }
+                        onClick={async () => {
+                          await setEditing({
+                            data: {
+                              round_id:
+                                round.id,
+
+                              enabled:
+                                false,
+                            },
+                          });
+
+                          refresh();
+
+                          toast.success(
+                            "Editing closed",
+                          );
+                        }}
+                      >
+                        Closed
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             );
           },
@@ -791,8 +797,7 @@ function RoundsPage() {
         0 ? (
           <p className="text-sm text-muted-foreground">
             No rounds in
-            this edition
-            yet.
+            this edition yet.
           </p>
         ) : null}
       </div>
