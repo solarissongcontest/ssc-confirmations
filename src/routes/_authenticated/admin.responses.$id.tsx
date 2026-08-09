@@ -31,6 +31,7 @@ import {
   Link2,
   Shield,
   Trash2,
+  Trophy,
   XCircle,
 } from "lucide-react";
 
@@ -53,6 +54,7 @@ import {
 import {
   describeDate,
   statusOf,
+  winningNfEntry,
   type AdminSubmission,
   type EntryReviewStatus,
 } from "@/lib/adminModel";
@@ -62,16 +64,16 @@ import {
 } from "@/components/ui/button";
 
 import {
-  Textarea,
-} from "@/components/ui/textarea";
+  Label,
+} from "@/components/ui/label";
 
 import {
   Switch,
 } from "@/components/ui/switch";
 
 import {
-  Label,
-} from "@/components/ui/label";
+  Textarea,
+} from "@/components/ui/textarea";
 
 import {
   cn,
@@ -89,7 +91,8 @@ function Row({
   label,
   value,
 }: {
-  label: string;
+  label:
+    string;
 
   value:
     ReactNode;
@@ -200,25 +203,6 @@ function ResponseDetail() {
     );
 
   const [
-    generatedLink,
-    setGeneratedLink,
-  ] =
-    useState<
-      string | null
-    >(null);
-
-  const [
-    linkType,
-    setLinkType,
-  ] =
-    useState<
-      "reusable"
-      | "one_time"
-    >(
-      "reusable",
-    );
-
-  const [
     notes,
     setNotes,
   ] =
@@ -240,6 +224,25 @@ function ResponseDetail() {
         string
       >
     >({});
+
+  const [
+    generatedLink,
+    setGeneratedLink,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const [
+    linkType,
+    setLinkType,
+  ] =
+    useState<
+      "reusable"
+      | "one_time"
+    >(
+      "reusable",
+    );
 
   const {
     data,
@@ -280,7 +283,7 @@ function ResponseDetail() {
 
   const {
     data:
-      reviewHistory,
+      moderationHistory,
   } =
     useQuery({
       queryKey: [
@@ -314,8 +317,8 @@ function ResponseDetail() {
       );
     }
   }, [
-    submission?.id,
     submission?.admin_notes,
+    submission?.id,
   ]);
 
   if (
@@ -333,6 +336,11 @@ function ResponseDetail() {
 
   const nf =
     submission.national_finals;
+
+  const winner =
+    winningNfEntry(
+      submission,
+    );
 
   function refresh() {
     void qc.invalidateQueries({
@@ -357,10 +365,11 @@ function ResponseDetail() {
   }
 
   async function flags(
-    patch: Record<
-      string,
-      boolean | string
-    >,
+    patch:
+      Record<
+        string,
+        boolean | string
+      >,
   ) {
     await updateFlags({
       data: {
@@ -372,7 +381,7 @@ function ResponseDetail() {
     refresh();
   }
 
-  async function doInternalReview(
+  async function reviewInternal(
     status:
       | "pending"
       | "accepted"
@@ -387,7 +396,9 @@ function ResponseDetail() {
     const reason =
       internalReason.trim();
 
-    if (!reason) {
+    if (
+      !reason
+    ) {
       toast.error(
         "A reason is required.",
       );
@@ -411,13 +422,9 @@ function ResponseDetail() {
     );
 
     refresh();
-
-    toast.success(
-      `Entry ${status}`,
-    );
   }
 
-  async function doNfReview(
+  async function reviewNfEntry(
     entryId:
       string,
 
@@ -435,7 +442,9 @@ function ResponseDetail() {
         ""
       ).trim();
 
-    if (!reason) {
+    if (
+      !reason
+    ) {
       toast.error(
         "A reason is required.",
       );
@@ -466,20 +475,15 @@ function ResponseDetail() {
     );
 
     refresh();
-
-    toast.success(
-      status ===
-        "removed"
-        ? "NF entry removed"
-        : `Entry ${status}`,
-    );
   }
 
   async function changeWinner(
     entryId:
       string,
   ) {
-    if (!nf) {
+    if (
+      !nf
+    ) {
       return;
     }
 
@@ -491,9 +495,11 @@ function ResponseDetail() {
         ""
       ).trim();
 
-    if (!reason) {
+    if (
+      !reason
+    ) {
       toast.error(
-        "A reason is required to change the winner.",
+        "A reason is required.",
       );
 
       return;
@@ -529,1102 +535,760 @@ function ResponseDetail() {
     );
 
     refresh();
-
-    toast.success(
-      clearing
-        ? "Winner cleared"
-        : "Winner updated",
-    );
   }
 
   return (
     <div className="space-y-6">
       <Link
         to="/admin/responses"
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground"
       >
         <ArrowLeft className="size-4" />
 
         Back to responses
       </Link>
 
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            {
-              submission.country
-            }
-          </h1>
+      <header>
+        <h1 className="text-2xl font-semibold">
+          {
+            submission.country
+          }
+        </h1>
 
-          <p className="text-sm text-muted-foreground">
-            @
-            {
-              submission.instagram_username
-            }
-            {" · "}
-            {
-              statusOf(
-                submission,
-              )
-            }
-          </p>
-        </div>
-
-        <Button
-          variant="outline"
-          onClick={async () => {
-            if (
-              !confirm(
-                "Delete this response permanently?",
-              )
-            ) {
-              return;
-            }
-
-            await remove({
-              data: {
-                id,
-              },
-            });
-
-            toast.success(
-              "Response deleted",
-            );
-
-            navigate({
-              to:
-                "/admin/responses",
-            });
-          }}
-        >
-          Delete response
-        </Button>
+        <p className="text-sm text-muted-foreground">
+          @
+          {
+            submission.instagram_username
+          }
+          {" · "}
+          {
+            statusOf(
+              submission,
+            )
+          }
+        </p>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* DELEGATION */}
+      {/* ======================================================
+       * DELEGATION
+       * ==================================================== */}
 
-        <section className="surface p-5">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Delegation
-          </h2>
+      <section className="surface p-5">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Delegation
+        </h2>
+
+        <Row
+          label="Country"
+          value={
+            submission.country
+          }
+        />
+
+        <Row
+          label="Selection method"
+          value={
+            submission.selection_method ===
+            "national_final"
+              ? "National Final"
+              : submission.selection_method ===
+                  "internal"
+                ? "Internal Selection"
+                : "Unknown"
+          }
+        />
+      </section>
+
+      {/* ======================================================
+       * INTERNAL
+       * ==================================================== */}
+
+      {internal ? (
+        <section className="surface space-y-4 p-5">
+          <div className="flex justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Internal entry
+            </h2>
+
+            <ReviewBadge
+              status={
+                internal.review_status
+              }
+            />
+          </div>
 
           <Row
-            label="Country"
+            label="Artist"
             value={
-              submission.country
-            }
-          />
-
-          <Row
-            label="Instagram"
-            value={`@${submission.instagram_username}`}
-          />
-
-          <Row
-            label="Country account"
-            value={
-              submission.has_country_account
-                ? submission.country_account ??
-                  "Yes"
-                : "No account"
-            }
-          />
-
-          <Row
-            label="Participating"
-            value={
-              submission.participating
-                ? "Yes"
-                : "No"
-            }
-          />
-
-          <Row
-            label="Selection method"
-            value={(
-              submission.selection_method ??
+              internal.artist ??
               "—"
-            ).replace(
-              "_",
-              " ",
-            )}
-          />
-        </section>
-
-        {/* INTERNAL ENTRY */}
-
-        {internal ? (
-          <section
-            className={cn(
-              "surface space-y-4 p-5",
-
-              internal.review_status ===
-                "declined"
-                ? "border border-destructive/50"
-                : internal.review_status ===
-                    "accepted"
-                  ? "border border-success/35"
-                  : "",
-            )}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                Internal
-                selection
-              </h2>
-
-              <ReviewBadge
-                status={
-                  internal.review_status ??
-                  "pending"
-                }
-              />
-            </div>
-
-            <Row
-              label="Artist"
-              value={
-                internal.artist ??
-                "Not known yet"
-              }
-            />
-
-            <Row
-              label="Song"
-              value={
-                internal.song_title ??
-                "Not known yet"
-              }
-            />
-
-            <Row
-              label="Link"
-              value={
-                internal.song_url ? (
-                  <a
-                    href={
-                      internal.song_url
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-accent underline"
-                  >
-                    Open
-                  </a>
-                ) : (
-                  "—"
-                )
-              }
-            />
-
-            <Row
-              label="25s preview"
-              value={
-                internal.preview_start
-                  ? `${internal.preview_start} – ${internal.preview_end}`
-                  : "—"
-              }
-            />
-
-            <Row
-              label="90s clip"
-              value={
-                internal.final_clip_start
-                  ? `${internal.final_clip_start} – ${internal.final_clip_end}`
-                  : "—"
-              }
-            />
-
-            {internal.review_reason ? (
-              <div
-                className={cn(
-                  "rounded-xl border p-3",
-
-                  internal.review_status ===
-                    "declined"
-                    ? "border-destructive/40 bg-destructive/10"
-                    : "border-border bg-secondary/20",
-                )}
-              >
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                  Current public
-                  reason
-                </p>
-
-                <p className="mt-1 text-sm">
-                  {
-                    internal.review_reason
-                  }
-                </p>
-              </div>
-            ) : null}
-
-            <div className="space-y-2 border-t border-border/60 pt-4">
-              <Label>
-                Reason for
-                this admin
-                action *
-              </Label>
-
-              <Textarea
-                value={
-                  internalReason
-                }
-                placeholder="This reason will be visible to the participant."
-                onChange={(
-                  event,
-                ) =>
-                  setInternalReason(
-                    event.target
-                      .value,
-                  )
-                }
-              />
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    void doInternalReview(
-                      "accepted",
-                    )
-                  }
-                >
-                  <CheckCircle2 className="mr-1.5 size-4" />
-
-                  Accept
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() =>
-                    void doInternalReview(
-                      "declined",
-                    )
-                  }
-                >
-                  <XCircle className="mr-1.5 size-4" />
-
-                  Decline
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    void doInternalReview(
-                      "pending",
-                    )
-                  }
-                >
-                  Reset to
-                  pending
-                </Button>
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        {/* NATIONAL FINAL */}
-
-        {nf ? (
-          <section className="surface space-y-4 p-5 lg:col-span-2">
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                National Final
-              </h2>
-
-              <p className="mt-1 text-sm">
-                {
-                  nf.nf_name ??
-                  "Unnamed National Final"
-                }
-              </p>
-            </div>
-
-            <Row
-              label="Expected entries"
-              value={
-                nf.expected_entry_count ??
-                "Unknown"
-              }
-            />
-
-            <Row
-              label="NF date"
-              value={
-                describeDate(
-                  submission.nf_date_type,
-                  submission.nf_exact_date,
-                  submission.nf_approximate_text,
-                )
-              }
-            />
-
-            <Row
-              label="Result date"
-              value={
-                describeDate(
-                  submission.nf_result_date_type,
-                  submission.nf_result_exact_date,
-                  submission.nf_result_approximate_text,
-                )
-              }
-            />
-
-            <div className="space-y-3">
-              {nf.national_final_entries.map(
-                (
-                  entry,
-                ) => (
-                  <div
-                    key={
-                      entry.id
-                    }
-                    className={cn(
-                      "rounded-xl border p-4",
-
-                      entry.removed ||
-                      entry.review_status ===
-                        "declined"
-                        ? "border-destructive/50 bg-destructive/10"
-                        : entry.review_status ===
-                            "accepted"
-                          ? "border-success/35 bg-success/5"
-                          : "border-border bg-secondary/20",
-                    )}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p
-                          className={cn(
-                            "font-medium",
-
-                            entry.removed
-                              ? "line-through opacity-70"
-                              : "",
-                          )}
-                        >
-                          {
-                            entry.artist
-                          }
-                          {" — "}
-                          {
-                            entry.song_title
-                          }
-                        </p>
-
-                        {entry.song_url ? (
-                          <a
-                            href={
-                              entry.song_url
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-1 inline-block text-xs text-accent underline"
-                          >
-                            Open song
-                          </a>
-                        ) : null}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <ReviewBadge
-                          status={
-                            entry.removed
-                              ? "removed"
-                              : entry.review_status ??
-                                "pending"
-                          }
-                        />
-
-                        {nf.winning_entry_id ===
-                        entry.id ? (
-                          <span className="rounded-full bg-accent/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-accent">
-                            Winner
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {entry.review_reason ? (
-                      <div className="mt-3 rounded-lg border border-border/60 bg-background/20 p-3">
-                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                          Current
-                          public
-                          reason
-                        </p>
-
-                        <p className="mt-1 text-sm">
-                          {
-                            entry.review_reason
-                          }
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {entry.removed ? (
-                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-destructive">
-                        Removed from
-                        participant's
-                        National Final
-                      </p>
-                    ) : null}
-
-                    <div className="mt-4 space-y-2 border-t border-border/60 pt-4">
-                      <Label>
-                        Reason for
-                        this admin
-                        action *
-                      </Label>
-
-                      <Textarea
-                        value={
-                          nfReasons[
-                            entry.id
-                          ] ??
-                          ""
-                        }
-                        placeholder="Required. The participant will see this reason."
-                        onChange={(
-                          event,
-                        ) =>
-                          setNfReasons(
-                            (
-                              current,
-                            ) => ({
-                              ...current,
-
-                              [entry.id]:
-                                event
-                                  .target
-                                  .value,
-                            }),
-                          )
-                        }
-                      />
-
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            void doNfReview(
-                              entry.id,
-                              "accepted",
-                            )
-                          }
-                        >
-                          Accept
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() =>
-                            void doNfReview(
-                              entry.id,
-                              "declined",
-                            )
-                          }
-                        >
-                          Decline
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() =>
-                            void doNfReview(
-                              entry.id,
-                              "removed",
-                            )
-                          }
-                        >
-                          Remove from
-                          NF
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            void doNfReview(
-                              entry.id,
-                              "pending",
-                            )
-                          }
-                        >
-                          Reset pending
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant={
-                            nf.winning_entry_id ===
-                            entry.id
-                              ? "default"
-                              : "outline"
-                          }
-                          disabled={
-                            entry.removed
-                          }
-                          onClick={() =>
-                            void changeWinner(
-                              entry.id,
-                            )
-                          }
-                        >
-                          {nf.winning_entry_id ===
-                          entry.id
-                            ? "Clear winner"
-                            : "Mark winner"}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ),
-              )}
-
-              {nf.national_final_entries.length ===
-              0 ? (
-                <p className="text-xs text-muted-foreground">
-                  Entries not
-                  submitted yet.
-                </p>
-              ) : null}
-            </div>
-          </section>
-        ) : null}
-
-        {/* RELEASE */}
-
-        <section className="surface p-5">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Release &amp;
-            embargo
-          </h2>
-
-          <Row
-            label="Reveal date"
-            value={
-              describeDate(
-                submission.reveal_date_type,
-                submission.reveal_exact_date,
-                submission.reveal_approximate_text,
-              )
             }
           />
 
           <Row
-            label="Edits made"
+            label="Song"
             value={
-              submission.edit_count
+              internal.song_title ??
+              "—"
             }
           />
 
           <Row
-            label="Last update"
+            label="25s preview"
             value={
-              new Date(
-                submission.updated_at,
-              ).toLocaleString()
-            }
-          />
-        </section>
-
-        {/* ADMIN CONTROLS */}
-
-        <section className="surface space-y-4 p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Admin controls
-          </h2>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="editing">
-              Allow
-              participant to
-              edit
-            </Label>
-
-            <Switch
-              id="editing"
-              checked={
-                submission.editing_allowed
-              }
-              onCheckedChange={(
-                value,
-              ) =>
-                void flags({
-                  editing_allowed:
-                    value,
-                })
-              }
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="locked">
-              Locked
-            </Label>
-
-            <Switch
-              id="locked"
-              checked={
-                submission.locked
-              }
-              onCheckedChange={(
-                value,
-              ) =>
-                void flags({
-                  locked:
-                    value,
-                })
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">
-              Internal notes
-            </Label>
-
-            <Textarea
-              id="notes"
-              value={
-                notes
-              }
-              onChange={(
-                event,
-              ) =>
-                setNotes(
-                  event.target
-                    .value,
-                )
-              }
-            />
-
-            <Button
-              size="sm"
-              onClick={async () => {
-                await flags({
-                  admin_notes:
-                    notes,
-                });
-
-                toast.success(
-                  "Notes saved",
-                );
-              }}
-            >
-              Save notes
-            </Button>
-          </div>
-        </section>
-
-        {/* MODERATION HISTORY */}
-
-        <section className="surface p-5 lg:col-span-2">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Entry moderation
-            history
-          </h2>
-
-          <div className="mt-4 space-y-2">
-            {(
-              reviewHistory ??
-              []
-            ).map(
-              (
-                item: any,
-              ) => (
-                <div
-                  key={
-                    item.id
-                  }
-                  className="rounded-xl border border-border bg-secondary/20 p-3"
-                >
-                  <div className="flex flex-wrap justify-between gap-2">
-                    <p className="text-sm font-medium">
-                      {item.artist_snapshot
-                        ? `${item.artist_snapshot} — ${item.song_title_snapshot ?? ""}`
-                        : "Entry"}
-                    </p>
-
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                      {String(
-                        item.action,
-                      ).replace(
-                        "_",
-                        " ",
-                      )}
-                    </span>
-                  </div>
-
-                  <p className="mt-2 text-sm">
-                    {
-                      item.reason
-                    }
-                  </p>
-
-                  <p className="mt-2 text-[10px] text-muted-foreground">
-                    {new Date(
-                      item.created_at,
-                    ).toLocaleString()}
-                  </p>
-                </div>
-              ),
-            )}
-
-            {(
-              reviewHistory ??
-              []
-            ).length ===
-            0 ? (
-              <p className="text-xs text-muted-foreground">
-                No moderation
-                actions yet.
-              </p>
-            ) : null}
-          </div>
-        </section>
-
-        {/* EDIT ACCESS */}
-
-        <section className="surface space-y-4 p-5">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-              Edit access
-            </h2>
-
-            <p className="mt-1 text-xs text-muted-foreground">
-              Generate a
-              private edit
-              link.
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant={
-                linkType ===
-                "reusable"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() =>
-                setLinkType(
-                  "reusable",
-                )
-              }
-            >
-              Reusable
-            </Button>
-
-            <Button
-              size="sm"
-              variant={
-                linkType ===
-                "one_time"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() =>
-                setLinkType(
-                  "one_time",
-                )
-              }
-            >
-              One-time
-            </Button>
-          </div>
-
-          <Button
-            onClick={async () => {
-              try {
-                const result =
-                  await generateEditLink({
-                    data: {
-                      submission_id:
-                        id,
-
-                      token_type:
-                        linkType,
-
-                      expires_in_hours:
-                        null,
-                    },
-                  });
-
-                const url =
-                  `${window.location.origin}/edit/${result.token}`;
-
-                setGeneratedLink(
-                  url,
-                );
-
-                await navigator.clipboard.writeText(
-                  url,
-                );
-
-                toast.success(
-                  "Edit link generated and copied",
-                );
-
-                void qc.invalidateQueries({
-                  queryKey: [
-                    "submission-technical",
-                    id,
-                  ],
-                });
-              } catch {
-                toast.error(
-                  "Could not generate edit link",
-                );
-              }
-            }}
-          >
-            <Link2 className="mr-2 size-4" />
-
-            Generate edit
-            link
-          </Button>
-
-          {generatedLink ? (
-            <div className="space-y-2 rounded-lg border border-border p-3">
-              <p className="break-all text-xs text-muted-foreground">
-                {
-                  generatedLink
-                }
-              </p>
-
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(
-                      generatedLink,
-                    );
-
-                    toast.success(
-                      "Copied",
-                    );
-                  }}
-                >
-                  <Copy className="mr-2 size-3.5" />
-
-                  Copy
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    window.open(
-                      generatedLink,
-                      "_blank",
-                      "noopener,noreferrer",
-                    )
-                  }
-                >
-                  <ExternalLink className="mr-2 size-3.5" />
-
-                  Open
-                </Button>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="space-y-2">
-            {(
-              technical?.tokens ??
-              []
-            ).map(
-              (
-                token,
-              ) => (
-                <div
-                  key={
-                    token.id
-                  }
-                  className="rounded-lg border border-border bg-secondary/20 p-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium">
-                        {token.token_type ===
-                        "one_time"
-                          ? "One-time link"
-                          : "Reusable link"}
-                      </p>
-
-                      <p className="text-xs text-muted-foreground">
-                        {token.active
-                          ? "Active"
-                          : "Revoked"}
-                        {" · Used "}
-                        {
-                          token.use_count
-                        }
-                        {" time"}
-                        {token.use_count ===
-                        1
-                          ? ""
-                          : "s"}
-                      </p>
-                    </div>
-
-                    {token.active ? (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={async () => {
-                          await revokeLink({
-                            data: {
-                              id:
-                                token.id,
-                            },
-                          });
-
-                          toast.success(
-                            "Edit link revoked",
-                          );
-
-                          void qc.invalidateQueries({
-                            queryKey: [
-                              "submission-technical",
-                              id,
-                            ],
-                          });
-                        }}
-                      >
-                        <Trash2 className="mr-2 size-3.5" />
-
-                        Revoke
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-              ),
-            )}
-          </div>
-        </section>
-
-        {/* TECHNICAL */}
-
-        <section className="surface p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <Shield className="size-4 text-muted-foreground" />
-
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-              Technical
-              information
-            </h2>
-          </div>
-
-          <Row
-            label="Initial IP"
-            value={
-              technical
-                ?.ip_history
-                ?.length
-                ? technical
-                    .ip_history[
-                    technical
-                      .ip_history
-                      .length -
-                      1
-                  ]
-                    ?.ip_address ??
-                  "—"
+              internal.preview_start
+                ? `${internal.preview_start} – ${internal.preview_end}`
                 : "—"
             }
           />
 
           <Row
-            label="Latest IP"
+            label="90s final clip"
             value={
-              technical
-                ?.ip_history?.[0]
-                ?.ip_address ??
-              "—"
+              internal.final_clip_start
+                ? `${internal.final_clip_start} – ${internal.final_clip_end}`
+                : "—"
             }
           />
 
-          <Row
-            label="Known IP addresses"
+          <Textarea
+            placeholder="Required public reason"
             value={
-              technical
-                ?.ip_history
-                ?.length ??
-              0
+              internalReason
+            }
+            onChange={(
+              event,
+            ) =>
+              setInternalReason(
+                event.target
+                  .value,
+              )
             }
           />
+
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() =>
+                void reviewInternal(
+                  "accepted",
+                )
+              }
+            >
+              <CheckCircle2 className="size-4" />
+
+              Accept
+            </Button>
+
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() =>
+                void reviewInternal(
+                  "declined",
+                )
+              }
+            >
+              <XCircle className="size-4" />
+
+              Decline
+            </Button>
+          </div>
         </section>
+      ) : null}
 
-        {/* EDIT HISTORY */}
+      {/* ======================================================
+       * NATIONAL FINAL
+       * ==================================================== */}
 
-        <section className="surface p-5 lg:col-span-2">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Participant edit
-            history
-          </h2>
+      {nf ? (
+        <section className="surface space-y-5 p-5">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              National Final
+            </p>
 
-          <ul className="space-y-2 text-sm">
-            {(
-              data?.versions ??
-              []
-            ).map(
-              (
-                version: {
-                  id:
-                    string;
+            <h2 className="mt-1 text-xl font-semibold">
+              {
+                nf.nf_name ??
+                "Unnamed National Final"
+              }
+            </h2>
+          </div>
 
-                  version:
-                    number;
+          {winner ? (
+            <div className="rounded-xl border-2 border-accent/50 bg-accent/10 p-5">
+              <div className="flex items-center gap-2">
+                <Trophy className="size-5 text-accent" />
 
-                  created_at:
-                    string;
-                },
-              ) => (
-                <li
-                  key={
-                    version.id
-                  }
-                  className="flex justify-between gap-3 text-muted-foreground"
-                >
-                  <span>
-                    Version{" "}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-accent">
+                    NF Winner
+                  </p>
+
+                  <p className="font-semibold">
                     {
-                      version.version
+                      winner.artist
                     }
-                  </span>
+                    {" — "}
+                    {
+                      winner.song_title
+                    }
+                  </p>
+                </div>
+              </div>
 
-                  <span>
-                    {new Date(
-                      version.created_at,
-                    ).toLocaleString()}
-                  </span>
-                </li>
+              <div className="mt-4">
+                <Row
+                  label="Song link"
+                  value={
+                    winner.song_url ? (
+                      <a
+                        href={
+                          winner.song_url
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-accent underline"
+                      >
+                        Open
+                      </a>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+
+                <Row
+                  label="25s preview"
+                  value={
+                    winner.preview_start
+                      ? `${winner.preview_start} – ${winner.preview_end}`
+                      : "Not submitted"
+                  }
+                />
+
+                <Row
+                  label="90s final clip"
+                  value={
+                    winner.final_clip_start
+                      ? `${winner.final_clip_start} – ${winner.final_clip_end}`
+                      : "Not submitted"
+                  }
+                />
+
+                <Row
+                  label="Replacement video"
+                  value={
+                    winner.replacement_video_required
+                      ? winner.replacement_video_url ??
+                        "Required, URL missing"
+                      : "Not needed"
+                  }
+                />
+              </div>
+
+              <p className="mt-3 text-xs text-muted-foreground">
+                This entry is
+                stored as the
+                National Final
+                winner. It is not
+                an internal
+                selection.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
+              National Final
+              winner not known
+              yet.
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {nf.national_final_entries.map(
+              (
+                entry,
+              ) => (
+                <div
+                  key={
+                    entry.id
+                  }
+                  className={cn(
+                    "rounded-xl border p-4",
+
+                    entry.removed
+                      ? "border-destructive/50 bg-destructive/10"
+                      : nf.winning_entry_id ===
+                          entry.id
+                        ? "border-accent/50 bg-accent/10"
+                        : "border-border bg-secondary/20",
+                  )}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p
+                        className={cn(
+                          "font-medium",
+
+                          entry.removed
+                            ? "line-through"
+                            : "",
+                        )}
+                      >
+                        {
+                          entry.artist
+                        }
+                        {" — "}
+                        {
+                          entry.song_title
+                        }
+                      </p>
+
+                      {entry.song_url ? (
+                        <a
+                          href={
+                            entry.song_url
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-accent underline"
+                        >
+                          Open song
+                        </a>
+                      ) : null}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <ReviewBadge
+                        status={
+                          entry.removed
+                            ? "removed"
+                            : entry.review_status
+                        }
+                      />
+
+                      {nf.winning_entry_id ===
+                      entry.id ? (
+                        <span className="rounded-full bg-accent/15 px-2 py-1 text-[10px] font-semibold uppercase text-accent">
+                          Winner
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {entry.review_reason ? (
+                    <p className="mt-3 text-sm">
+                      {
+                        entry.review_reason
+                      }
+                    </p>
+                  ) : null}
+
+                  <Textarea
+                    className="mt-4"
+                    placeholder="Required public reason"
+                    value={
+                      nfReasons[
+                        entry.id
+                      ] ??
+                      ""
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setNfReasons(
+                        (
+                          current,
+                        ) => ({
+                          ...current,
+
+                          [entry.id]:
+                            event.target
+                              .value,
+                        }),
+                      )
+                    }
+                  />
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        void reviewNfEntry(
+                          entry.id,
+                          "accepted",
+                        )
+                      }
+                    >
+                      Accept
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() =>
+                        void reviewNfEntry(
+                          entry.id,
+                          "declined",
+                        )
+                      }
+                    >
+                      Decline
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() =>
+                        void reviewNfEntry(
+                          entry.id,
+                          "removed",
+                        )
+                      }
+                    >
+                      Remove
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={
+                        entry.removed
+                      }
+                      onClick={() =>
+                        void changeWinner(
+                          entry.id,
+                        )
+                      }
+                    >
+                      <Trophy className="size-4" />
+
+                      {nf.winning_entry_id ===
+                      entry.id
+                        ? "Clear winner"
+                        : "Mark winner"}
+                    </Button>
+                  </div>
+                </div>
               ),
             )}
-
-            {(
-              data?.versions ??
-              []
-            ).length ===
-            0 ? (
-              <li className="text-xs text-muted-foreground">
-                No edits
-                recorded.
-              </li>
-            ) : null}
-          </ul>
+          </div>
         </section>
-      </div>
+      ) : null}
+
+      {/* ======================================================
+       * ADMIN CONTROLS
+       * ==================================================== */}
+
+      <section className="surface space-y-4 p-5">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Admin controls
+        </h2>
+
+        <div className="flex items-center justify-between">
+          <Label>
+            Allow participant
+            to edit
+          </Label>
+
+          <Switch
+            checked={
+              submission.editing_allowed
+            }
+            onCheckedChange={(
+              value,
+            ) =>
+              void flags({
+                editing_allowed:
+                  value,
+              })
+            }
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Label>
+            Locked
+          </Label>
+
+          <Switch
+            checked={
+              submission.locked
+            }
+            onCheckedChange={(
+              value,
+            ) =>
+              void flags({
+                locked:
+                  value,
+              })
+            }
+          />
+        </div>
+
+        <Label>
+          Internal admin notes
+        </Label>
+
+        <Textarea
+          value={
+            notes
+          }
+          onChange={(
+            event,
+          ) =>
+            setNotes(
+              event.target
+                .value,
+            )
+          }
+        />
+
+        <Button
+          size="sm"
+          onClick={async () => {
+            await flags({
+              admin_notes:
+                notes,
+            });
+
+            toast.success(
+              "Notes saved",
+            );
+          }}
+        >
+          Save notes
+        </Button>
+      </section>
+
+      {/* ======================================================
+       * EDIT LINK
+       * ==================================================== */}
+
+      <section className="surface space-y-4 p-5">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Edit access
+        </h2>
+
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant={
+              linkType ===
+              "reusable"
+                ? "default"
+                : "outline"
+            }
+            onClick={() =>
+              setLinkType(
+                "reusable",
+              )
+            }
+          >
+            Reusable
+          </Button>
+
+          <Button
+            size="sm"
+            variant={
+              linkType ===
+              "one_time"
+                ? "default"
+                : "outline"
+            }
+            onClick={() =>
+              setLinkType(
+                "one_time",
+              )
+            }
+          >
+            One-time
+          </Button>
+        </div>
+
+        <Button
+          onClick={async () => {
+            const result =
+              await generateEditLink({
+                data: {
+                  submission_id:
+                    id,
+
+                  token_type:
+                    linkType,
+
+                  expires_in_hours:
+                    null,
+                },
+              });
+
+            const url =
+              `${window.location.origin}/edit/${result.token}`;
+
+            setGeneratedLink(
+              url,
+            );
+
+            await navigator.clipboard.writeText(
+              url,
+            );
+
+            toast.success(
+              "Edit link copied",
+            );
+          }}
+        >
+          <Link2 className="size-4" />
+
+          Generate edit link
+        </Button>
+
+        {generatedLink ? (
+          <div className="rounded-lg border border-border p-3">
+            <p className="break-all text-xs">
+              {
+                generatedLink
+              }
+            </p>
+
+            <div className="mt-2 flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  void navigator.clipboard.writeText(
+                    generatedLink,
+                  )
+                }
+              >
+                <Copy className="size-4" />
+
+                Copy
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  window.open(
+                    generatedLink,
+                    "_blank",
+                  )
+                }
+              >
+                <ExternalLink className="size-4" />
+
+                Open
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      {/* ======================================================
+       * MODERATION HISTORY
+       * ==================================================== */}
+
+      <section className="surface p-5">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Moderation history
+        </h2>
+
+        <div className="mt-4 space-y-2">
+          {(
+            moderationHistory ??
+            []
+          ).map(
+            (
+              item:
+                any,
+            ) => (
+              <div
+                key={
+                  item.id
+                }
+                className="rounded-lg border border-border p-3"
+              >
+                <p className="font-medium">
+                  {
+                    item.artist_snapshot
+                  }
+                  {" — "}
+                  {
+                    item.song_title_snapshot
+                  }
+                </p>
+
+                <p className="mt-1 text-xs uppercase text-muted-foreground">
+                  {
+                    item.action
+                  }
+                </p>
+
+                <p className="mt-2 text-sm">
+                  {
+                    item.reason
+                  }
+                </p>
+              </div>
+            ),
+          )}
+        </div>
+      </section>
+
+      {/* ======================================================
+       * TECHNICAL INFO
+       * ==================================================== */}
+
+      <section className="surface p-5">
+        <div className="flex items-center gap-2">
+          <Shield className="size-4" />
+
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Technical
+            information
+          </h2>
+        </div>
+
+        <Row
+          label="Known IPs"
+          value={
+            technical
+              ?.ip_history
+              ?.length ??
+            0
+          }
+        />
+      </section>
+
+      <Button
+        variant="destructive"
+        onClick={async () => {
+          if (
+            !confirm(
+              "Delete this response permanently?",
+            )
+          ) {
+            return;
+          }
+
+          await remove({
+            data: {
+              id,
+            },
+          });
+
+          navigate({
+            to:
+              "/admin/responses",
+          });
+        }}
+      >
+        <Trash2 className="size-4" />
+
+        Delete response
+      </Button>
     </div>
   );
 }
