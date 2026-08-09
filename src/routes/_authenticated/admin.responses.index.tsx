@@ -63,23 +63,23 @@ const FILTERS = [
 ] as const;
 
 type CardState =
-  | "normal"
   | "unreviewed"
-  | "accepted"
   | "declined"
-  | "nf_issue";
+  | "normal"
+  | "nf_issue"
+  | "accepted";
+
+/* ============================================================
+ * RESPONSE CARD STATE
+ * ========================================================== */
 
 function responseCardState(
   submission:
     AdminSubmission,
 ): CardState {
   /*
-   * No song = normal card.
-   *
-   * This includes:
-   * - not participating
-   * - unknown song
-   * - song not submitted yet
+   * If they haven't actually submitted a song/entry yet,
+   * keep the card completely normal.
    */
   if (
     !songSubmitted(
@@ -90,7 +90,7 @@ function responseCardState(
   }
 
   /* ==========================================================
-   * INTERNAL
+   * INTERNAL SELECTION
    * ======================================================== */
 
   if (
@@ -135,6 +135,34 @@ function responseCardState(
         ?.national_final_entries ??
       [];
 
+    if (
+      entries.length ===
+      0
+    ) {
+      return "normal";
+    }
+
+    /*
+     * A rejected/removed NF song makes the response yellow.
+     */
+    const hasNfProblem =
+      entries.some(
+        (
+          entry,
+        ) =>
+          entry.removed ||
+          entry.review_status ===
+            "removed" ||
+          entry.review_status ===
+            "declined",
+      );
+
+    if (
+      hasNfProblem
+    ) {
+      return "nf_issue";
+    }
+
     const activeEntries =
       entries.filter(
         (
@@ -143,26 +171,10 @@ function responseCardState(
           !entry.removed,
       );
 
-    if (
-      entries.some(
-        (
-          entry,
-        ) =>
-          entry.review_status ===
-            "declined" ||
-          entry.review_status ===
-            "removed" ||
-          entry.removed,
-      )
-    ) {
-      /*
-       * An NF can still continue even if one individual song
-       * is rejected, so this gets yellow rather than red.
-       */
-      return "nf_issue";
-    }
-
-    if (
+    /*
+     * Every active NF entry accepted = green.
+     */
+    const allAccepted =
       activeEntries.length >
         0 &&
       activeEntries.every(
@@ -171,51 +183,166 @@ function responseCardState(
         ) =>
           entry.review_status ===
           "accepted",
-      )
+      );
+
+    if (
+      allAccepted
     ) {
       return "accepted";
     }
 
+    /*
+     * At least one song exists, but not everything has been
+     * reviewed yet.
+     */
     return "unreviewed";
   }
 
   return "normal";
 }
 
-function cardClasses(
+/* ============================================================
+ * SORT PRIORITY
+ *
+ * 0 = RED
+ * 1 = NORMAL
+ * 2 = YELLOW
+ * 3 = GREEN
+ * ========================================================== */
+
+function statePriority(
   state:
     CardState,
 ) {
   if (
     state ===
-    "accepted"
+      "unreviewed" ||
+    state ===
+      "declined"
   ) {
-    return "border border-success/55 bg-success/10 shadow-[0_0_24px_rgba(34,197,94,0.18)]";
+    return 0;
   }
 
   if (
     state ===
-    "declined"
+    "normal"
   ) {
-    return "border border-destructive/70 bg-destructive/10 shadow-[0_0_26px_rgba(239,68,68,0.28)]";
+    return 1;
   }
 
   if (
     state ===
     "nf_issue"
   ) {
-    return "border border-warning/70 bg-warning/10 shadow-[0_0_24px_rgba(234,179,8,0.20)]";
+    return 2;
+  }
+
+  return 3;
+}
+
+/* ============================================================
+ * CARD GLOW
+ * ========================================================== */
+
+function mobileCardClasses(
+  state:
+    CardState,
+) {
+  if (
+    state ===
+      "unreviewed" ||
+    state ===
+      "declined"
+  ) {
+    return [
+      "border border-destructive/80",
+      "bg-destructive/10",
+      "shadow-[0_0_14px_rgba(239,68,68,0.35),0_0_34px_rgba(239,68,68,0.18),inset_0_0_18px_rgba(239,68,68,0.06)]",
+    ].join(
+      " ",
+    );
   }
 
   if (
     state ===
-    "unreviewed"
+    "nf_issue"
   ) {
-    return "border border-destructive/65 bg-destructive/10 shadow-[0_0_26px_rgba(239,68,68,0.26)]";
+    return [
+      "border border-warning/80",
+      "bg-warning/10",
+      "shadow-[0_0_14px_rgba(234,179,8,0.32),0_0_34px_rgba(234,179,8,0.16),inset_0_0_18px_rgba(234,179,8,0.05)]",
+    ].join(
+      " ",
+    );
+  }
+
+  if (
+    state ===
+    "accepted"
+  ) {
+    return [
+      "border border-success/70",
+      "bg-success/10",
+      "shadow-[0_0_14px_rgba(34,197,94,0.30),0_0_34px_rgba(34,197,94,0.15),inset_0_0_18px_rgba(34,197,94,0.05)]",
+    ].join(
+      " ",
+    );
   }
 
   return "";
 }
+
+function desktopRowClasses(
+  state:
+    CardState,
+) {
+  if (
+    state ===
+      "unreviewed" ||
+    state ===
+      "declined"
+  ) {
+    return [
+      "bg-destructive/10",
+      "shadow-[inset_5px_0_0_rgba(239,68,68,0.95),inset_0_0_22px_rgba(239,68,68,0.07),0_0_20px_rgba(239,68,68,0.20)]",
+      "hover:bg-destructive/15",
+    ].join(
+      " ",
+    );
+  }
+
+  if (
+    state ===
+    "nf_issue"
+  ) {
+    return [
+      "bg-warning/10",
+      "shadow-[inset_5px_0_0_rgba(234,179,8,0.95),inset_0_0_22px_rgba(234,179,8,0.06),0_0_20px_rgba(234,179,8,0.17)]",
+      "hover:bg-warning/15",
+    ].join(
+      " ",
+    );
+  }
+
+  if (
+    state ===
+    "accepted"
+  ) {
+    return [
+      "bg-success/10",
+      "shadow-[inset_5px_0_0_rgba(34,197,94,0.90),inset_0_0_22px_rgba(34,197,94,0.06),0_0_20px_rgba(34,197,94,0.16)]",
+      "hover:bg-success/15",
+    ].join(
+      " ",
+    );
+  }
+
+  return "hover:bg-white/[0.025]";
+}
+
+/* ============================================================
+ * BADGE
+ * ========================================================== */
 
 function stateBadge(
   state:
@@ -223,13 +350,13 @@ function stateBadge(
 ) {
   if (
     state ===
-    "accepted"
+    "unreviewed"
   ) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-success">
-        <CheckCircle2 className="size-3" />
+      <span className="inline-flex items-center gap-1 rounded-full border border-destructive/45 bg-destructive/15 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-widest text-destructive">
+        <CircleAlert className="size-3" />
 
-        Accepted
+        Needs review
       </span>
     );
   }
@@ -239,10 +366,10 @@ function stateBadge(
     "declined"
   ) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-destructive">
+      <span className="inline-flex items-center gap-1 rounded-full border border-destructive/45 bg-destructive/15 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-widest text-destructive">
         <XCircle className="size-3" />
 
-        Declined
+        Entry declined
       </span>
     );
   }
@@ -252,7 +379,7 @@ function stateBadge(
     "nf_issue"
   ) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-warning">
+      <span className="inline-flex items-center gap-1 rounded-full border border-warning/45 bg-warning/15 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-widest text-warning">
         <CircleAlert className="size-3" />
 
         NF entry declined
@@ -262,19 +389,27 @@ function stateBadge(
 
   if (
     state ===
-    "unreviewed"
+    "accepted"
   ) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-destructive">
-        <CircleAlert className="size-3" />
+      <span className="inline-flex items-center gap-1 rounded-full border border-success/35 bg-success/15 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-widest text-success">
+        <CheckCircle2 className="size-3" />
 
-        Needs review
+        Accepted
       </span>
     );
   }
 
-  return null;
+  return (
+    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+      Not submitted
+    </span>
+  );
 }
+
+/* ============================================================
+ * PAGE
+ * ========================================================== */
 
 function ResponsesPage() {
   const {
@@ -342,7 +477,7 @@ function ResponsesPage() {
     useState("");
 
   /* ==========================================================
-   * NORMAL RESULTS
+   * NORMAL CONFIRMATIONS
    * ======================================================== */
 
   const rows =
@@ -510,7 +645,15 @@ function ResponsesPage() {
         }
 
         /*
-         * Still keep unreviewed submissions at the top.
+         * GROUP BY CARD COLOUR:
+         *
+         * 1. RED
+         * 2. NORMAL
+         * 3. YELLOW
+         * 4. GREEN
+         *
+         * Within RED:
+         * unreviewed before already-declined entries.
          */
         list.sort(
           (
@@ -527,23 +670,51 @@ function ResponsesPage() {
                 b,
               );
 
-            const aPending =
-              aState ===
-              "unreviewed";
-
-            const bPending =
-              bState ===
-              "unreviewed";
+            const priorityDifference =
+              statePriority(
+                aState,
+              ) -
+              statePriority(
+                bState,
+              );
 
             if (
-              aPending !==
-              bPending
+              priorityDifference !==
+              0
             ) {
-              return aPending
-                ? -1
-                : 1;
+              return priorityDifference;
             }
 
+            /*
+             * Both red, so requests waiting for review come
+             * before already-declined entries.
+             */
+            if (
+              statePriority(
+                aState,
+              ) ===
+              0 &&
+              aState !==
+                bState
+            ) {
+              if (
+                aState ===
+                "unreviewed"
+              ) {
+                return -1;
+              }
+
+              if (
+                bState ===
+                "unreviewed"
+              ) {
+                return 1;
+              }
+            }
+
+            /*
+             * Newest first inside each group.
+             */
             return (
               new Date(
                 b.submitted_at,
@@ -665,10 +836,12 @@ function ResponsesPage() {
         }
       />
 
-      {/* NEXT IN LINE */}
-
       {scope.isNextInLine ? (
         <>
+          {/* ==================================================
+           * NEXT IN LINE
+           * ================================================ */}
+
           <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
@@ -679,10 +852,10 @@ function ResponsesPage() {
                 q
               }
               onChange={(
-                e,
+                event,
               ) =>
                 setQ(
-                  e.target
+                  event.target
                     .value,
                 )
               }
@@ -709,6 +882,8 @@ function ResponsesPage() {
                   }`}
             </p>
           </div>
+
+          {/* MOBILE NEXT IN LINE */}
 
           <div className="space-y-3 sm:hidden">
             {nextRows.map(
@@ -853,6 +1028,8 @@ function ResponsesPage() {
             ) : null}
           </div>
 
+          {/* DESKTOP NEXT IN LINE */}
+
           <div className="surface hidden overflow-hidden sm:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[800px] text-sm">
@@ -940,6 +1117,20 @@ function ResponsesPage() {
                       </tr>
                     ),
                   )}
+
+                  {nextRows.length ===
+                  0 ? (
+                    <tr>
+                      <td
+                        colSpan={
+                          6
+                        }
+                        className="px-4 py-8 text-center text-muted-foreground"
+                      >
+                        No Next in Line responses yet.
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             </div>
@@ -947,7 +1138,9 @@ function ResponsesPage() {
         </>
       ) : (
         <>
-          {/* NORMAL CONFIRMATIONS */}
+          {/* ==================================================
+           * NORMAL CONFIRMATIONS
+           * ================================================ */}
 
           {unreviewedCount >
           0 ? (
@@ -958,7 +1151,7 @@ function ResponsesPage() {
                   "Unreviewed",
                 )
               }
-              className="w-full rounded-xl border border-destructive/60 bg-destructive/10 px-4 py-3 text-left shadow-[0_0_24px_rgba(239,68,68,0.22)] transition hover:bg-destructive/15"
+              className="w-full rounded-xl border border-destructive/70 bg-destructive/10 px-4 py-3 text-left shadow-[0_0_14px_rgba(239,68,68,0.35),0_0_32px_rgba(239,68,68,0.16)] transition hover:bg-destructive/15"
             >
               <div className="flex items-center gap-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive">
@@ -978,9 +1171,8 @@ function ResponsesPage() {
                   </p>
 
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Unreviewed
-                    responses are
-                    shown first.
+                    These responses
+                    are shown first.
                   </p>
                 </div>
               </div>
@@ -1039,10 +1231,10 @@ function ResponsesPage() {
                   q
                 }
                 onChange={(
-                  e,
+                  event,
                 ) =>
                   setQ(
-                    e.target
+                    event.target
                       .value,
                   )
                 }
@@ -1063,26 +1255,31 @@ function ResponsesPage() {
 
           {/* MOBILE */}
 
-          <div className="space-y-3 sm:hidden">
+          <div className="space-y-4 sm:hidden">
             {rows.map(
               (
-                s,
+                submission,
               ) => {
+                const cardState =
+                  responseCardState(
+                    submission,
+                  );
+
                 const entry =
-                  s
+                  submission
                     .internal_entries
                     ?.song_title
-                    ? `${s.internal_entries.artist} — ${s.internal_entries.song_title}`
-                    : s
+                    ? `${submission.internal_entries.artist} — ${submission.internal_entries.song_title}`
+                    : submission
                           .national_finals
                           ?.nf_name
-                      ? `${s.national_finals.nf_name} (${s.national_finals.national_final_entries.length})`
+                      ? `${submission.national_finals.nf_name} (${submission.national_finals.national_final_entries.length})`
                       : "Not submitted";
 
                 const method =
-                  s.participating
+                  submission.participating
                     ? (
-                        s.selection_method ??
+                        submission.selection_method ??
                         "unknown"
                       ).replace(
                         "_",
@@ -1092,57 +1289,51 @@ function ResponsesPage() {
 
                 const status =
                   statusOf(
-                    s,
-                  );
-
-                const cardState =
-                  responseCardState(
-                    s,
+                    submission,
                   );
 
                 return (
                   <Link
                     key={
-                      s.id
+                      submission.id
                     }
                     to="/admin/responses/$id"
                     params={{
                       id:
-                        s.id,
+                        submission.id,
                     }}
                     className={cn(
                       "surface relative block overflow-hidden p-5 transition-all active:scale-[0.985]",
 
-                      cardClasses(
+                      mobileCardClasses(
                         cardState,
                       ),
                     )}
                   >
+                    {cardState ===
+                      "unreviewed" ||
+                    cardState ===
+                      "declined" ? (
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.18),transparent_65%)]" />
+                    ) : null}
+
+                    {cardState ===
+                    "nf_issue" ? (
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.16),transparent_65%)]" />
+                    ) : null}
+
+                    {cardState ===
+                    "accepted" ? (
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.15),transparent_65%)]" />
+                    ) : null}
+
                     <div className="relative">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h2
-                              className={cn(
-                                "text-xl",
-
-                                cardState ===
-                                  "accepted"
-                                  ? "text-success"
-                                  : cardState ===
-                                      "declined"
-                                    ? "text-destructive"
-                                    : cardState ===
-                                        "nf_issue"
-                                      ? "text-warning"
-                                      : cardState ===
-                                          "unreviewed"
-                                        ? "text-destructive"
-                                        : "",
-                              )}
-                            >
+                            <h2 className="text-xl">
                               {
-                                s.country
+                                submission.country
                               }
                             </h2>
 
@@ -1154,7 +1345,7 @@ function ResponsesPage() {
                           <p className="mt-1 truncate text-sm text-muted-foreground">
                             @
                             {
-                              s.instagram_username
+                              submission.instagram_username
                             }
                           </p>
                         </div>
@@ -1180,19 +1371,11 @@ function ResponsesPage() {
                             Status
                           </p>
 
-                          <div className="mt-1 flex items-center gap-1.5 text-sm">
-                            {songSubmitted(
-                              s,
-                            ) ? (
-                              <CheckCircle2 className="size-3.5 text-success" />
-                            ) : (
-                              <CircleAlert className="size-3.5 text-muted-foreground" />
-                            )}
-
+                          <p className="mt-1 text-sm">
                             {
                               status
                             }
-                          </div>
+                          </p>
                         </div>
 
                         <div className="col-span-2">
@@ -1213,7 +1396,7 @@ function ResponsesPage() {
                           Submitted{" "}
 
                           {new Date(
-                            s.submitted_at,
+                            submission.submitted_at,
                           ).toLocaleDateString()}
                         </div>
                       </div>
@@ -1222,154 +1405,147 @@ function ResponsesPage() {
                 );
               },
             )}
+
+            {rows.length ===
+              0 &&
+            !isLoading ? (
+              <div className="surface p-8 text-center text-sm text-muted-foreground">
+                No responses match this filter.
+              </div>
+            ) : null}
           </div>
 
           {/* DESKTOP */}
 
-          <div className="surface hidden overflow-hidden sm:block">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-widest text-muted-foreground">
-                    <th className="px-4 py-3">
-                      Country
-                    </th>
+          <div className="hidden space-y-3 sm:block">
+            {rows.map(
+              (
+                submission,
+              ) => {
+                const cardState =
+                  responseCardState(
+                    submission,
+                  );
 
-                    <th className="px-4 py-3">
-                      Review
-                    </th>
+                const entry =
+                  submission
+                    .internal_entries
+                    ?.song_title
+                    ? `${submission.internal_entries.artist} — ${submission.internal_entries.song_title}`
+                    : submission
+                          .national_finals
+                          ?.nf_name
+                      ? `${submission.national_finals.nf_name} (${submission.national_finals.national_final_entries.length})`
+                      : "Not submitted";
 
-                    <th className="px-4 py-3">
-                      Instagram
-                    </th>
+                const method =
+                  submission.participating
+                    ? (
+                        submission.selection_method ??
+                        "unknown"
+                      ).replace(
+                        "_",
+                        " ",
+                      )
+                    : "Not participating";
 
-                    <th className="px-4 py-3">
-                      Method
-                    </th>
+                return (
+                  <Link
+                    key={
+                      submission.id
+                    }
+                    to="/admin/responses/$id"
+                    params={{
+                      id:
+                        submission.id,
+                    }}
+                    className={cn(
+                      "surface relative block overflow-hidden border p-5 transition-all hover:-translate-y-[1px]",
 
-                    <th className="px-4 py-3">
-                      Entry
-                    </th>
+                      cardState ===
+                        "normal"
+                        ? "border-border"
+                        : "",
 
-                    <th className="px-4 py-3">
-                      Status
-                    </th>
+                      mobileCardClasses(
+                        cardState,
+                      ),
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-5">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h2 className="text-lg font-medium">
+                            {
+                              submission.country
+                            }
+                          </h2>
 
-                    <th className="px-4 py-3">
-                      Submitted
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {rows.map(
-                    (
-                      s,
-                    ) => {
-                      const cardState =
-                        responseCardState(
-                          s,
-                        );
-
-                      return (
-                        <tr
-                          key={
-                            s.id
-                          }
-                          className={cn(
-                            "border-b border-border/60 transition-colors last:border-0",
-
-                            cardState ===
-                              "accepted"
-                              ? "bg-success/10 shadow-[inset_4px_0_0_rgba(34,197,94,0.85)]"
-                              : cardState ===
-                                  "declined"
-                                ? "bg-destructive/10 shadow-[inset_4px_0_0_rgba(239,68,68,0.90)]"
-                                : cardState ===
-                                    "nf_issue"
-                                  ? "bg-warning/10 shadow-[inset_4px_0_0_rgba(234,179,8,0.90)]"
-                                  : cardState ===
-                                      "unreviewed"
-                                    ? "bg-destructive/10 shadow-[inset_4px_0_0_rgba(239,68,68,0.90),0_0_18px_rgba(239,68,68,0.16)]"
-                                    : "hover:bg-white/[0.025]",
+                          {stateBadge(
+                            cardState,
                           )}
-                        >
-                          <td className="px-4 py-4 font-medium">
-                            <Link
-                              to="/admin/responses/$id"
-                              params={{
-                                id:
-                                  s.id,
-                              }}
-                              className="hover:text-accent"
-                            >
-                              {
-                                s.country
-                              }
-                            </Link>
-                          </td>
 
-                          <td className="px-4 py-4">
-                            {stateBadge(
-                              cardState,
-                            ) ?? (
-                              <span className="text-xs text-muted-foreground">
-                                —
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="px-4 py-4 text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             @
                             {
-                              s.instagram_username
+                              submission.instagram_username
                             }
-                          </td>
+                          </span>
+                        </div>
 
-                          <td className="px-4 py-4 capitalize">
-                            {s.participating
-                              ? (
-                                  s.selection_method ??
-                                  "unknown"
-                                ).replace(
-                                  "_",
-                                  " ",
-                                )
-                              : "Not participating"}
-                          </td>
+                        <div className="mt-3 grid grid-cols-[160px_1fr_160px] gap-5 text-sm">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                              Method
+                            </p>
 
-                          <td className="px-4 py-4">
-                            {s
-                              .internal_entries
-                              ?.song_title
-                              ? `${s.internal_entries.artist} — ${s.internal_entries.song_title}`
-                              : s
-                                    .national_finals
-                                    ?.nf_name
-                                ? `${s.national_finals.nf_name} (${s.national_finals.national_final_entries.length})`
-                                : "—"}
-                          </td>
+                            <p className="mt-1 capitalize">
+                              {
+                                method
+                              }
+                            </p>
+                          </div>
 
-                          <td className="px-4 py-4 text-xs text-muted-foreground">
-                            {
-                              statusOf(
-                                s,
-                              )
-                            }
-                          </td>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                              Entry
+                            </p>
 
-                          <td className="px-4 py-4 text-xs text-muted-foreground">
-                            {new Date(
-                              s.submitted_at,
-                            ).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      );
-                    },
-                  )}
-                </tbody>
-              </table>
-            </div>
+                            <p className="mt-1 truncate">
+                              {
+                                entry
+                              }
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                              Submitted
+                            </p>
+
+                            <p className="mt-1">
+                              {new Date(
+                                submission.submitted_at,
+                              ).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <ArrowRight className="size-5 shrink-0 text-muted-foreground" />
+                    </div>
+                  </Link>
+                );
+              },
+            )}
+
+            {rows.length ===
+              0 &&
+            !isLoading ? (
+              <div className="surface p-8 text-center text-sm text-muted-foreground">
+                No responses match this filter.
+              </div>
+            ) : null}
           </div>
         </>
       )}
