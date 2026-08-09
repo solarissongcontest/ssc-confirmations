@@ -1,11 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ssc-confirmations",
-  "main": "src/server.ts",
-  "compatibility_date": "2025-09-02",
+  "compatibility_date": "2026-08-10",
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "main": "@tanstack/react-start/server-entry",
   "observability": {
     "enabled": true
   }
