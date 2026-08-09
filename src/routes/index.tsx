@@ -752,7 +752,16 @@ function Index() {
           />
         </div>
       ) : null}
-
+<div className="mt-8 text-center">
+  <Button
+    variant="outline"
+    asChild
+  >
+    <Link to="/next-in-line">
+      Next in Line
+    </Link>
+  </Button>
+</div>
       {/* ======================================================
        * FOOTER
        * ==================================================== */}
