@@ -26,6 +26,9 @@ import {
   supabase,
 } from "@/integrations/supabase/client";
 
+export const NEXT_IN_LINE_SCOPE =
+  "__next_in_line__";
+
 /* ============================================================
  * TYPES
  * ========================================================== */
@@ -140,10 +143,8 @@ export function useEditions() {
           "postgres_changes",
           {
             event: "*",
-
             schema:
               "public",
-
             table:
               "editions",
           },
@@ -160,10 +161,8 @@ export function useEditions() {
           "postgres_changes",
           {
             event: "*",
-
             schema:
               "public",
-
             table:
               "submission_rounds",
           },
@@ -230,7 +229,7 @@ export function useSubmissions(
     useQueryClient();
 
   useEffect(() => {
-    const refreshSubmissions =
+    const refresh =
       () => {
         void queryClient.invalidateQueries({
           queryKey: [
@@ -248,77 +247,67 @@ export function useSubmissions(
     const channel =
       supabase
         .channel(
-          `admin-submissions-live-${filter.edition_id ?? "all"}-${filter.round_id ?? "all"}`,
+          `admin-submissions-${filter.edition_id ?? "all"}-${filter.round_id ?? "all"}`,
         )
 
         .on(
           "postgres_changes",
           {
             event: "*",
-
             schema:
               "public",
-
             table:
               "submissions",
           },
-          refreshSubmissions,
+          refresh,
         )
 
         .on(
           "postgres_changes",
           {
             event: "*",
-
             schema:
               "public",
-
             table:
               "internal_entries",
           },
-          refreshSubmissions,
+          refresh,
         )
 
         .on(
           "postgres_changes",
           {
             event: "*",
-
             schema:
               "public",
-
             table:
               "national_finals",
           },
-          refreshSubmissions,
+          refresh,
         )
 
         .on(
           "postgres_changes",
           {
             event: "*",
-
             schema:
               "public",
-
             table:
               "national_final_entries",
           },
-          refreshSubmissions,
+          refresh,
         )
 
         .on(
           "postgres_changes",
           {
             event: "*",
-
             schema:
               "public",
-
             table:
               "submission_rounds",
           },
-          refreshSubmissions,
+          refresh,
         )
 
         .subscribe();
@@ -337,10 +326,8 @@ export function useSubmissions(
   return useQuery({
     queryKey: [
       "submissions",
-
       filter.edition_id ??
         "",
-
       filter.round_id ??
         "",
     ],
@@ -367,7 +354,7 @@ export function useSubmissions(
 }
 
 /* ============================================================
- * NEXT IN LINE SUBMISSIONS
+ * NEXT IN LINE
  * ========================================================== */
 
 export function useNextInLineSubmissions(
@@ -396,10 +383,8 @@ export function useNextInLineSubmissions(
           "postgres_changes",
           {
             event: "*",
-
             schema:
               "public",
-
             table:
               "next_in_line_submissions",
           },
@@ -421,19 +406,12 @@ export function useNextInLineSubmissions(
   return useQuery({
     queryKey: [
       "next-in-line-submissions",
-
       editionId ??
         "",
     ],
 
     queryFn:
       async () => {
-        /*
-         * Supabase generated types may not yet contain the
-         * Next in Line table, so this cast deliberately avoids
-         * a false TypeScript error while still using the same
-         * authenticated Supabase client.
-         */
         const client =
           supabase as any;
 
@@ -496,7 +474,7 @@ export function useNextInLineSubmissions(
 }
 
 /* ============================================================
- * EDITION + ROUND SCOPE
+ * SCOPE
  * ========================================================== */
 
 export function useScope(
@@ -508,17 +486,13 @@ export function useScope(
     editionId,
     setEditionId,
   ] =
-    useState<string>(
-      "",
-    );
+    useState("");
 
   const [
     roundId,
-    setRoundId,
+    setRoundIdState,
   ] =
-    useState<string>(
-      "",
-    );
+    useState("");
 
   const edition =
     useMemo(
@@ -542,14 +516,34 @@ export function useScope(
     edition?.submission_rounds ??
     [];
 
+  const isNextInLine =
+    roundId ===
+    NEXT_IN_LINE_SCOPE;
+
   const round =
-    rounds.find(
-      (
-        round,
-      ) =>
-        round.id ===
-        roundId,
+    isNextInLine
+      ? undefined
+      : rounds.find(
+          (
+            round,
+          ) =>
+            round.id ===
+            roundId,
+        );
+
+  const resolvedRoundId =
+    isNextInLine
+      ? NEXT_IN_LINE_SCOPE
+      : round?.id ??
+        "";
+
+  function setRoundId(
+    id: string,
+  ) {
+    setRoundIdState(
+      id,
     );
+  }
 
   return {
     editionId:
@@ -557,8 +551,9 @@ export function useScope(
       "",
 
     roundId:
-      round?.id ??
-      "",
+      resolvedRoundId,
+
+    isNextInLine,
 
     edition,
 
@@ -574,7 +569,7 @@ export function useScope(
           id,
         );
 
-        setRoundId(
+        setRoundIdState(
           "",
         );
       },
