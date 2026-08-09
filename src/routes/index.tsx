@@ -4,12 +4,14 @@ import {
 } from "@tanstack/react-router";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
 } from "react";
 
 import {
+  KeyRound,
   Lock,
   Pencil,
 } from "lucide-react";
@@ -31,6 +33,10 @@ import {
 import {
   SubmissionReviewStatus,
 } from "@/components/SubmissionReviewStatus";
+
+import {
+  RecoveryCodeSetup,
+} from "@/components/RecoveryCodeSetup";
 
 import {
   Progress,
@@ -83,8 +89,19 @@ type MySubmission = {
   can_edit?:
     boolean;
 
-  submission?:
-    any;
+  submission?: {
+    id:
+      string;
+
+    country:
+      string;
+
+    browser_edit_token?:
+      string | null;
+
+    [key: string]:
+      unknown;
+  } | null;
 };
 
 function formatCountdown(
@@ -92,7 +109,9 @@ function formatCountdown(
     | string
     | null,
 ) {
-  if (!opensAt) {
+  if (
+    !opensAt
+  ) {
     return "OPENS SOON";
   }
 
@@ -267,75 +286,95 @@ function Index() {
     tick,
     setTick,
   ] =
-    useState(0);
+    useState(
+      0,
+    );
 
-  useEffect(() => {
-    if (
-      !sessionId ||
-      rounds.length ===
-        0
-    ) {
-      return;
-    }
+  const refreshMine =
+    useCallback(
+      async () => {
+        if (
+          !sessionId ||
+          rounds.length ===
+            0
+        ) {
+          return;
+        }
 
-    let cancelled =
-      false;
+        const entries =
+          await Promise.all(
+            rounds.map(
+              async (
+                round,
+              ) => {
+                try {
+                  const result =
+                    await findMine({
+                      data: {
+                        round_id:
+                          round.id,
 
-    void (async () => {
-      const entries =
-        await Promise.all(
-          rounds.map(
-            async (
-              round,
-            ) => {
-              try {
-                const result =
-                  await findMine({
-                    data: {
-                      round_id:
-                        round.id,
+                        browser_session_id:
+                          sessionId,
+                      },
+                    });
 
-                      browser_session_id:
-                        sessionId,
+                  return [
+                    round.id,
+                    result as MySubmission,
+                  ] as const;
+                } catch {
+                  return [
+                    round.id,
+                    {
+                      found:
+                        false,
                     },
-                  });
+                  ] as const;
+                }
+              },
+            ),
+          );
 
-                return [
-                  round.id,
-                  result as MySubmission,
-                ] as const;
-              } catch {
-                return [
-                  round.id,
-                  {
-                    found:
-                      false,
-                  },
-                ] as const;
-              }
-            },
-          ),
-        );
-
-      if (
-        !cancelled
-      ) {
         setMine(
           Object.fromEntries(
             entries,
           ),
         );
-      }
-    })();
+      },
+      [
+        findMine,
+        rounds,
+        sessionId,
+      ],
+    );
 
-    return () => {
-      cancelled =
-        true;
-    };
+  /*
+   * Initial check + polling.
+   *
+   * The polling is intentional:
+   * after ConfirmationForm submits successfully, the submission
+   * already exists in the database. Within a moment this page
+   * detects it and switches to the saved-response/recovery-code
+   * screen.
+   */
+  useEffect(() => {
+    void refreshMine();
+
+    const timer =
+      window.setInterval(
+        () => {
+          void refreshMine();
+        },
+        1500,
+      );
+
+    return () =>
+      window.clearInterval(
+        timer,
+      );
   }, [
-    rounds,
-    sessionId,
-    findMine,
+    refreshMine,
   ]);
 
   useEffect(() => {
@@ -395,6 +434,8 @@ function Index() {
                       : round,
                 ),
             );
+
+            void refreshMine();
           },
         )
 
@@ -414,10 +455,11 @@ function Index() {
             payload,
           ) => {
             const row =
-              payload.new as Partial<PublicRound> & {
-                id?:
-                  string;
-              };
+              payload.new as
+                Partial<PublicRound> & {
+                  id?:
+                    string;
+                };
 
             if (
               !row.id
@@ -452,7 +494,9 @@ function Index() {
         channel,
       );
     };
-  }, []);
+  }, [
+    refreshMine,
+  ]);
 
   useEffect(() => {
     const timer =
@@ -537,6 +581,12 @@ function Index() {
           active.id
         ]
       : undefined;
+
+  const browserEditToken =
+    activeMine
+      ?.submission
+      ?.browser_edit_token ??
+    null;
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:py-16">
@@ -669,8 +719,8 @@ function Index() {
                       <p className="mt-1 text-xs text-muted-foreground">
                         {mineForRound
                           ?.can_edit
-                          ? "Tap to view the organiser review and edit your response."
-                          : "Tap to view the organiser review. Editing is currently closed."}
+                          ? "Tap to view the organiser review, recovery code and edit your response."
+                          : "Tap to view your recovery code and organiser review. Editing is currently closed."}
                       </p>
                     </div>
                   ) : state ===
@@ -742,8 +792,20 @@ function Index() {
             ) : null}
           </div>
 
-          {activeMine?.found ? (
+          {activeMine?.found &&
+          activeMine.submission ? (
             <>
+              <RecoveryCodeSetup
+                submissionId={
+                  activeMine
+                    .submission
+                    .id
+                }
+                browserSessionId={
+                  sessionId
+                }
+              />
+
               <SubmissionReviewStatus
                 mode="browser"
                 roundId={
@@ -754,37 +816,46 @@ function Index() {
                 }
               />
 
-              {activeMine.can_edit &&
-              activeMine.submission ? (
-                <>
-                  <div className="surface border border-accent/25 p-4">
-                    <p className="text-sm font-medium">
-                      Editing your
-                      existing
-                      response
-                    </p>
+              {activeMine.can_edit ? (
+                browserEditToken ? (
+                  <>
+                    <div className="surface border border-accent/25 p-4">
+                      <p className="text-sm font-medium">
+                        Editing your
+                        existing
+                        response
+                      </p>
 
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      If you change
-                      your submitted
-                      entry, it will
-                      need to be
-                      checked by the
-                      organisers
-                      again.
-                    </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        If you change
+                        your submitted
+                        entry, it will
+                        need to be
+                        checked by the
+                        organisers
+                        again.
+                      </p>
+                    </div>
+
+                    <ConfirmationForm
+                      round={
+                        active
+                      }
+                      prefill={
+                        activeMine.submission
+                      }
+                      editToken={
+                        browserEditToken
+                      }
+                    />
+                  </>
+                ) : (
+                  <div className="surface p-6 text-center text-sm text-muted-foreground">
+                    Preparing
+                    secure edit
+                    access…
                   </div>
-
-                  <ConfirmationForm
-                    round={
-                      active
-                    }
-                    prefill={
-                      activeMine.submission
-                    }
-                    editToken="__browser_session_edit__"
-                  />
-                </>
+                )
               ) : (
                 <div className="surface p-8 text-center">
                   <Lock className="mx-auto size-7 text-muted-foreground" />
@@ -795,10 +866,11 @@ function Index() {
                   </h2>
 
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Your response
+                    Your response,
+                    recovery code
                     and organiser
                     review remain
-                    visible, but
+                    available, but
                     you cannot
                     change the
                     submission
@@ -822,7 +894,18 @@ function Index() {
         </div>
       ) : null}
 
-      <div className="mt-8 text-center">
+      <div className="mt-8 flex flex-wrap justify-center gap-2">
+        <Button
+          variant="outline"
+          asChild
+        >
+          <Link to="/recover">
+            <KeyRound className="size-4" />
+
+            Recover response
+          </Link>
+        </Button>
+
         <Button
           variant="outline"
           asChild
