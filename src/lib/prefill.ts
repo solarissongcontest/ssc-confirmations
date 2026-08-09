@@ -1,219 +1,270 @@
-import {
-  createFileRoute,
-  Link,
-} from "@tanstack/react-router";
+import type {
+  ConfirmationPayload,
+  DateType,
+} from "@/lib/ssc";
 
-import {
-  useServerFn,
-} from "@tanstack/react-start";
+/**
+ * Converts a stored submission into the shape used by
+ * ConfirmationForm.
+ *
+ * Internal selections:
+ * - top-level artist/song/technical fields come from internal_entries
+ *
+ * National Finals:
+ * - nf_entries contains the active NF songs
+ * - top-level artist/song/technical fields represent the NF winner
+ * - selection_method remains "national_final"
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function prefillFromSubmission(
+  s: any,
+  base: ConfirmationPayload,
+): ConfirmationPayload {
+  const internal =
+    s.internal_entries ??
+    null;
 
-import {
-  useQuery,
-} from "@tanstack/react-query";
+  const nf =
+    s.national_finals ??
+    null;
 
-import {
-  ArrowLeft,
-  LockKeyhole,
-} from "lucide-react";
+  const allNfEntries =
+    (
+      nf?.national_final_entries ??
+      []
+    )
+      .slice()
+      .sort(
+        (
+          a: {
+            position?: number | null;
+          },
+          b: {
+            position?: number | null;
+          },
+        ) =>
+          (a.position ?? 0) -
+          (b.position ?? 0),
+      );
 
-import {
-  resolveEditToken,
-} from "@/lib/public.functions";
-
-import {
-  ConfirmationForm,
-} from "@/components/ConfirmationForm";
-
-import {
-  SubmissionReviewStatus,
-} from "@/components/SubmissionReviewStatus";
-
-import {
-  Button,
-} from "@/components/ui/button";
-
-export const Route =
-  createFileRoute(
-    "/edit/$token",
-  )({
-    component:
-      EditSubmissionPage,
-  });
-
-function EditSubmissionPage() {
-  const {
-    token,
-  } =
-    Route.useParams();
-
-  const resolve =
-    useServerFn(
-      resolveEditToken,
+  /*
+   * Removed entries remain visible through moderation history,
+   * but must not reappear in the participant's editable NF list.
+   */
+  const editableNfEntries =
+    allNfEntries.filter(
+      (
+        entry: {
+          removed?: boolean | null;
+        },
+      ) =>
+        entry.removed !==
+        true,
     );
 
-  const {
-    data,
-    isLoading,
-  } =
-    useQuery({
-      queryKey: [
-        "edit-token",
-        token,
-      ],
-
-      queryFn:
-        () =>
-          resolve({
-            data: {
-              token,
+  /*
+   * Find the actual NF winner using winning_entry_id.
+   */
+  const winningEntry =
+    nf?.winning_entry_id
+      ? allNfEntries.find(
+          (
+            entry: {
+              id?: string;
             },
-          }),
+          ) =>
+            entry.id ===
+            nf.winning_entry_id,
+        ) ??
+        null
+      : null;
 
-      retry:
-        false,
-    });
+  const isNationalFinal =
+    s.selection_method ===
+    "national_final";
 
-  if (
-    isLoading
-  ) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-16">
-        <div className="surface p-8 text-center">
-          Loading your
-          confirmation…
-        </div>
-      </main>
-    );
-  }
+  /*
+   * ConfirmationForm currently uses the top-level song fields
+   * for both:
+   *
+   * - an internal entry
+   * - the winning NF entry
+   *
+   * This does NOT change the selection method.
+   */
+  const mainSong =
+    isNationalFinal
+      ? winningEntry
+      : internal;
 
-  const result =
-    data as
-      | {
-          valid?:
-            boolean;
+  return {
+    ...base,
 
-          reason?:
-            string;
+    round_id:
+      s.round_id ??
+      base.round_id,
 
-          submission?:
-            any;
+    instagram_username:
+      s.instagram_username ??
+      base.instagram_username,
 
-          round?:
-            any;
-        }
-      | undefined;
+    country:
+      s.country ??
+      base.country,
 
-  if (
-    !result?.valid ||
-    !result.submission ||
-    !result.round
-  ) {
-    const editingClosed =
-      result?.reason ===
-      "editing_closed";
+    has_country_account:
+      s.has_country_account ??
+      false,
 
-    return (
-      <main className="mx-auto w-full max-w-2xl space-y-6 px-4 py-10 sm:py-16">
-        <SubmissionReviewStatus
-          mode="token"
-          token={
-            token
-          }
-        />
+    country_account:
+      s.country_account ??
+      "",
 
-        <div className="surface p-8 text-center">
-          <LockKeyhole className="mx-auto mb-4 size-8 text-muted-foreground" />
+    participating:
+      s.participating ??
+      true,
 
-          <h1 className="text-xl font-semibold">
-            {editingClosed
-              ? "Editing is closed"
-              : "This edit link is no longer valid"}
-          </h1>
+    selection_method:
+      (
+        s.selection_method ??
+        ""
+      ) as ConfirmationPayload["selection_method"],
 
-          <p className="mt-3 text-sm text-muted-foreground">
-            {editingClosed
-              ? "Your response and organiser review are still saved, but editing is currently disabled."
-              : "The link may have expired, been revoked or already been used."}
-          </p>
+    entry_unknown:
+      s.entry_unknown ??
+      false,
 
-          <Button
-            asChild
-            variant="outline"
-            className="mt-6"
-          >
-            <Link to="/">
-              <ArrowLeft className="mr-2 size-4" />
+    nf_entries_unknown:
+      s.nf_entries_unknown ??
+      false,
 
-              Return to
-              confirmations
-            </Link>
-          </Button>
-        </div>
-      </main>
-    );
-  }
+    /* ========================================================
+     * INTERNAL ENTRY OR NF WINNER
+     * ====================================================== */
 
-  return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 px-4 py-10 sm:py-16">
-      <header className="text-center">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          {
-            result.round
-              .edition_name
-          }
-        </p>
+    artist:
+      mainSong?.artist ??
+      "",
 
-        <h1 className="mt-2 text-3xl font-bold">
-          Edit your
-          confirmation
-        </h1>
+    song_title:
+      mainSong?.song_title ??
+      "",
 
-        <p className="mt-2 text-sm text-muted-foreground">
-          {
-            result.submission
-              .country
-          }
-          {" · "}
-          {
-            result.round
-              .name
-          }
-        </p>
-      </header>
+    song_url:
+      mainSong?.song_url ??
+      "",
 
-      <SubmissionReviewStatus
-        mode="token"
-        token={
-          token
-        }
-      />
+    preview_start:
+      mainSong?.preview_start ??
+      "",
 
-      <div className="surface border border-accent/25 p-4">
-        <p className="text-sm font-medium">
-          Editing your
-          existing response
-        </p>
+    preview_end:
+      mainSong?.preview_end ??
+      "",
 
-        <p className="mt-1 text-xs text-muted-foreground">
-          If you replace or
-          change your entry,
-          the organisers will
-          need to check it
-          again.
-        </p>
-      </div>
+    final_clip_start:
+      mainSong?.final_clip_start ??
+      "",
 
-      <ConfirmationForm
-        round={
-          result.round
-        }
-        editToken={
-          token
-        }
-        prefill={
-          result.submission
-        }
-      />
-    </main>
-  );
+    final_clip_end:
+      mainSong?.final_clip_end ??
+      "",
+
+    replacement_video_required:
+      mainSong
+        ?.replacement_video_required ??
+      false,
+
+    replacement_video_url:
+      mainSong
+        ?.replacement_video_url ??
+      "",
+
+    /* ========================================================
+     * NATIONAL FINAL
+     * ====================================================== */
+
+    nf_name:
+      nf?.nf_name ??
+      "",
+
+    expected_entry_count:
+      nf?.expected_entry_count !==
+        null &&
+      nf?.expected_entry_count !==
+        undefined
+        ? String(
+            nf.expected_entry_count,
+          )
+        : "",
+
+    nf_entries:
+      editableNfEntries.map(
+        (
+          entry: {
+            artist?: string | null;
+            song_title?: string | null;
+            song_url?: string | null;
+          },
+        ) => ({
+          artist:
+            entry.artist ??
+            "",
+
+          song_title:
+            entry.song_title ??
+            "",
+
+          song_url:
+            entry.song_url ??
+            "",
+        }),
+      ),
+
+    nf_date_type:
+      (
+        s.nf_date_type ??
+        ""
+      ) as DateType | "",
+
+    nf_exact_date:
+      s.nf_exact_date ??
+      "",
+
+    nf_approximate_text:
+      s.nf_approximate_text ??
+      "",
+
+    nf_result_date_type:
+      (
+        s.nf_result_date_type ??
+        ""
+      ) as DateType | "",
+
+    nf_result_exact_date:
+      s.nf_result_exact_date ??
+      "",
+
+    nf_result_approximate_text:
+      s.nf_result_approximate_text ??
+      "",
+
+    /* ========================================================
+     * RELEASE
+     * ====================================================== */
+
+    reveal_date_type:
+      (
+        s.reveal_date_type ??
+        ""
+      ) as DateType | "",
+
+    reveal_exact_date:
+      s.reveal_exact_date ??
+      "",
+
+    reveal_approximate_text:
+      s.reveal_approximate_text ??
+      "",
+  };
 }
