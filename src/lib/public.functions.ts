@@ -4,6 +4,14 @@ import { z } from "zod";
 
 import type { Database } from "@/integrations/supabase/types";
 
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
 import type {
   AvailabilityReason,
   RoundAvailability,
@@ -751,7 +759,7 @@ export const lookupSubmission =
 
             can_edit?: boolean;
 
-            submission?: unknown;
+            submission?: JsonValue;
           }>(
             "public_lookup_submission",
             {
@@ -767,6 +775,12 @@ export const lookupSubmission =
           return {
             exists:
               false as const,
+
+            canEdit:
+              false as const,
+
+            submission:
+              null,
           };
         }
 
@@ -779,6 +793,9 @@ export const lookupSubmission =
 
             canEdit:
               false as const,
+
+            submission:
+              null,
           };
         }
 
@@ -790,7 +807,8 @@ export const lookupSubmission =
             true as const,
 
           submission:
-            result.submission,
+            result.submission ??
+            null,
         };
       },
     );
@@ -1040,7 +1058,7 @@ export const findMySubmission =
                 boolean;
 
               [key: string]:
-                unknown;
+                JsonValue;
             };
           }>(
             "public_find_my_submission",

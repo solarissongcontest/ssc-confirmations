@@ -12,7 +12,6 @@ export default defineConfig({
     tsConfigPaths({ projects: ["./tsconfig.json"] }),
     tailwindcss(),
     tanstackStart({
-      customViteReactPlugin: true,
       // Route TanStack Start's server entry through src/server.ts (SSR error wrapper).
       server: { entry: "server" },
     }),

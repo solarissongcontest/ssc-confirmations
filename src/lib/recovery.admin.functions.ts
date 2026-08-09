@@ -206,7 +206,10 @@ export const getAdminRecoveryCodes =
               };
 
         const roundMap =
-          new Map(
+          new Map<
+            string,
+            string
+          >(
             (
               rounds ??
               []
@@ -222,7 +225,10 @@ export const getAdminRecoveryCodes =
           );
 
         const editionMap =
-          new Map(
+          new Map<
+            string,
+            any
+          >(
             (
               editions ??
               []

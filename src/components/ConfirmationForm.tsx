@@ -91,10 +91,37 @@ const STEPS = [
   "Review",
 ] as const;
 
-type Errors =
+type KnownErrorKey =
+  | "artist"
+  | "country"
+  | "country_account"
+  | "final_clip_start"
+  | "instagram_username"
+  | "internal"
+  | "nf_date_type"
+  | "nf_entries"
+  | "nf_name"
+  | "nf_result_date_type"
+  | "nf_winner_final_clip"
+  | "nf_winner_preview"
+  | "nf_winner_replacement"
+  | "nf_winner_song_url"
+  | "preview_start"
+  | "replacement_video_url"
+  | "reveal_date_type"
+  | "selection_method"
+  | "song_title"
+  | "song_url";
+
+type Errors = Partial<
+  Record<
+    KnownErrorKey,
+    string
+  >
+> &
   Record<
     string,
-    string
+    string | undefined
   >;
 
 function Field({
