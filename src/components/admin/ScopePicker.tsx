@@ -1,14 +1,18 @@
-import type {
-  AdminEdition,
+import {
+  NEXT_IN_LINE_SCOPE,
+  type AdminEdition,
   useScope,
 } from "@/lib/adminHooks";
 
-import { cn } from "@/lib/utils";
+import {
+  cn,
+} from "@/lib/utils";
 
 export function ScopePicker({
   scope,
   editions,
   showRounds = true,
+  showNextInLine = true,
 }: {
   scope: ReturnType<
     typeof useScope
@@ -19,6 +23,8 @@ export function ScopePicker({
     | undefined;
 
   showRounds?: boolean;
+
+  showNextInLine?: boolean;
 }) {
   return (
     <div className="space-y-3">
@@ -28,8 +34,11 @@ export function ScopePicker({
 
       <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
         <div className="flex w-max min-w-full gap-2">
-          {(editions ?? []).map(
-            (edition) => (
+          {(editions ??
+            []).map(
+            (
+              edition,
+            ) => (
               <button
                 key={
                   edition.id
@@ -59,7 +68,7 @@ export function ScopePicker({
       </div>
 
       {/* ======================================================
-       * ROUNDS
+       * ROUNDS + NEXT IN LINE
        * ==================================================== */}
 
       {showRounds ? (
@@ -85,7 +94,9 @@ export function ScopePicker({
             </button>
 
             {scope.rounds.map(
-              (round) => (
+              (
+                round,
+              ) => (
                 <button
                   key={
                     round.id
@@ -111,6 +122,26 @@ export function ScopePicker({
                 </button>
               ),
             )}
+
+            {showNextInLine ? (
+              <button
+                type="button"
+                onClick={() =>
+                  scope.setRoundId(
+                    NEXT_IN_LINE_SCOPE,
+                  )
+                }
+                className={cn(
+                  "shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-colors",
+
+                  scope.isNextInLine
+                    ? "border-accent bg-accent/15 text-foreground"
+                    : "border-white/12 bg-white/5 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Next in Line
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
