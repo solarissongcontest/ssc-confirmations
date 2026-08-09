@@ -24,9 +24,10 @@ async function assertReviewAdmin(
 ) {
   const {
     supabaseAdmin,
-  } = await import(
-    "@/integrations/supabase/client.server"
-  );
+  } =
+    await import(
+      "@/integrations/supabase/client.server"
+    );
 
   const {
     data,
@@ -155,17 +156,78 @@ async function refreshSubmissionReviewed(
     );
 }
 
-const reasonSchema =
+const optionalReasonSchema =
   z
     .string()
     .trim()
-    .min(
-      1,
-      "A reason is required.",
-    )
     .max(
       2000,
+    )
+    .optional()
+    .default("");
+
+function validateReason(
+  status:
+    ReviewStatus |
+    NfReviewStatus,
+  reason:
+    string,
+) {
+  /*
+   * ACCEPTING DOES NOT REQUIRE A REASON.
+   *
+   * Every other moderation action still does.
+   */
+  if (
+    status !==
+      "accepted" &&
+    !reason.trim()
+  ) {
+    throw new Error(
+      "A reason is required for this action.",
     );
+  }
+}
+
+function publicReason(
+  status:
+    ReviewStatus |
+    NfReviewStatus,
+  reason:
+    string,
+) {
+  if (
+    status ===
+    "accepted"
+  ) {
+    return null;
+  }
+
+  return reason.trim();
+}
+
+function historyReason(
+  status:
+    ReviewStatus |
+    NfReviewStatus,
+  reason:
+    string,
+) {
+  /*
+   * Keep a non-empty audit value for accepted entries in case
+   * the history table requires reason NOT NULL.
+   *
+   * This is NOT stored as the participant-facing review_reason.
+   */
+  if (
+    status ===
+    "accepted"
+  ) {
+    return "Accepted";
+  }
+
+  return reason.trim();
+}
 
 /* ============================================================
  * INTERNAL ENTRY REVIEW
@@ -198,7 +260,7 @@ export const reviewInternalEntry =
               ]),
 
             reason:
-              reasonSchema,
+              optionalReasonSchema,
           })
           .parse(
             data,
@@ -213,6 +275,11 @@ export const reviewInternalEntry =
           await assertReviewAdmin(
             context.userId,
           );
+
+        validateReason(
+          data.status,
+          data.reason,
+        );
 
         const {
           data:
@@ -254,7 +321,10 @@ export const reviewInternalEntry =
                 data.status,
 
               review_reason:
-                data.reason,
+                publicReason(
+                  data.status,
+                  data.reason,
+                ),
 
               reviewed_at:
                 new Date()
@@ -302,7 +372,10 @@ export const reviewInternalEntry =
                 data.status,
 
               reason:
-                data.reason,
+                historyReason(
+                  data.status,
+                  data.reason,
+                ),
 
               admin_user_id:
                 context.userId,
@@ -359,7 +432,7 @@ export const reviewNationalFinalEntry =
               ]),
 
             reason:
-              reasonSchema,
+              optionalReasonSchema,
           })
           .parse(
             data,
@@ -374,6 +447,11 @@ export const reviewNationalFinalEntry =
           await assertReviewAdmin(
             context.userId,
           );
+
+        validateReason(
+          data.status,
+          data.reason,
+        );
 
         const {
           data:
@@ -447,7 +525,10 @@ export const reviewNationalFinalEntry =
                 data.status,
 
               review_reason:
-                data.reason,
+                publicReason(
+                  data.status,
+                  data.reason,
+                ),
 
               reviewed_at:
                 new Date()
@@ -475,6 +556,10 @@ export const reviewNationalFinalEntry =
           );
         }
 
+        /*
+         * If the removed song was the NF winner,
+         * clear the winner automatically.
+         */
         if (
           removed &&
           nationalFinal.winning_entry_id ===
@@ -522,7 +607,10 @@ export const reviewNationalFinalEntry =
                 data.status,
 
               reason:
-                data.reason,
+                historyReason(
+                  data.status,
+                  data.reason,
+                ),
 
               admin_user_id:
                 context.userId,
@@ -550,8 +638,20 @@ export const reviewNationalFinalEntry =
 /* ============================================================
  * NF WINNER CHANGE
  *
- * Also requires a visible reason because this changes an entry.
+ * Winner changes STILL require a visible reason.
  * ========================================================== */
+
+const requiredReasonSchema =
+  z
+    .string()
+    .trim()
+    .min(
+      1,
+      "A reason is required.",
+    )
+    .max(
+      2000,
+    );
 
 export const setWinningEntryWithReason =
   createServerFn({
@@ -579,7 +679,7 @@ export const setWinningEntryWithReason =
                 .nullable(),
 
             reason:
-              reasonSchema,
+              requiredReasonSchema,
           })
           .parse(
             data,
