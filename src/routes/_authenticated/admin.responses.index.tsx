@@ -15,6 +15,7 @@ import {
   CircleAlert,
   ExternalLink,
   Search,
+  XCircle,
 } from "lucide-react";
 
 import {
@@ -27,6 +28,7 @@ import {
 import {
   songSubmitted,
   statusOf,
+  type AdminSubmission,
 } from "@/lib/adminModel";
 
 import {
@@ -59,6 +61,220 @@ const FILTERS = [
   "Song missing",
   "Unreviewed",
 ] as const;
+
+type CardState =
+  | "normal"
+  | "unreviewed"
+  | "accepted"
+  | "declined"
+  | "nf_issue";
+
+function responseCardState(
+  submission:
+    AdminSubmission,
+): CardState {
+  /*
+   * No song = normal card.
+   *
+   * This includes:
+   * - not participating
+   * - unknown song
+   * - song not submitted yet
+   */
+  if (
+    !songSubmitted(
+      submission,
+    )
+  ) {
+    return "normal";
+  }
+
+  /* ==========================================================
+   * INTERNAL
+   * ======================================================== */
+
+  if (
+    submission.selection_method ===
+    "internal"
+  ) {
+    const entry =
+      submission.internal_entries;
+
+    if (!entry) {
+      return "normal";
+    }
+
+    if (
+      entry.review_status ===
+      "accepted"
+    ) {
+      return "accepted";
+    }
+
+    if (
+      entry.review_status ===
+      "declined"
+    ) {
+      return "declined";
+    }
+
+    return "unreviewed";
+  }
+
+  /* ==========================================================
+   * NATIONAL FINAL
+   * ======================================================== */
+
+  if (
+    submission.selection_method ===
+    "national_final"
+  ) {
+    const entries =
+      submission
+        .national_finals
+        ?.national_final_entries ??
+      [];
+
+    const activeEntries =
+      entries.filter(
+        (
+          entry,
+        ) =>
+          !entry.removed,
+      );
+
+    if (
+      entries.some(
+        (
+          entry,
+        ) =>
+          entry.review_status ===
+            "declined" ||
+          entry.review_status ===
+            "removed" ||
+          entry.removed,
+      )
+    ) {
+      /*
+       * An NF can still continue even if one individual song
+       * is rejected, so this gets yellow rather than red.
+       */
+      return "nf_issue";
+    }
+
+    if (
+      activeEntries.length >
+        0 &&
+      activeEntries.every(
+        (
+          entry,
+        ) =>
+          entry.review_status ===
+          "accepted",
+      )
+    ) {
+      return "accepted";
+    }
+
+    return "unreviewed";
+  }
+
+  return "normal";
+}
+
+function cardClasses(
+  state:
+    CardState,
+) {
+  if (
+    state ===
+    "accepted"
+  ) {
+    return "border border-success/55 bg-success/10 shadow-[0_0_24px_rgba(34,197,94,0.18)]";
+  }
+
+  if (
+    state ===
+    "declined"
+  ) {
+    return "border border-destructive/70 bg-destructive/10 shadow-[0_0_26px_rgba(239,68,68,0.28)]";
+  }
+
+  if (
+    state ===
+    "nf_issue"
+  ) {
+    return "border border-warning/70 bg-warning/10 shadow-[0_0_24px_rgba(234,179,8,0.20)]";
+  }
+
+  if (
+    state ===
+    "unreviewed"
+  ) {
+    return "border border-destructive/65 bg-destructive/10 shadow-[0_0_26px_rgba(239,68,68,0.26)]";
+  }
+
+  return "";
+}
+
+function stateBadge(
+  state:
+    CardState,
+) {
+  if (
+    state ===
+    "accepted"
+  ) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-success">
+        <CheckCircle2 className="size-3" />
+
+        Accepted
+      </span>
+    );
+  }
+
+  if (
+    state ===
+    "declined"
+  ) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-destructive">
+        <XCircle className="size-3" />
+
+        Declined
+      </span>
+    );
+  }
+
+  if (
+    state ===
+    "nf_issue"
+  ) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-warning">
+        <CircleAlert className="size-3" />
+
+        NF entry declined
+      </span>
+    );
+  }
+
+  if (
+    state ===
+    "unreviewed"
+  ) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-destructive">
+        <CircleAlert className="size-3" />
+
+        Needs review
+      </span>
+    );
+  }
+
+  return null;
+}
 
 function ResponsesPage() {
   const {
@@ -132,10 +348,6 @@ function ResponsesPage() {
   const rows =
     useMemo(
       () => {
-        /*
-         * Copy first so sorting does not mutate React Query's
-         * original cached array.
-         */
         let list = [
           ...(
             submissions ??
@@ -232,7 +444,10 @@ function ResponsesPage() {
               (
                 s,
               ) =>
-                !s.reviewed,
+                responseCardState(
+                  s,
+                ) ===
+                "unreviewed",
             );
         }
 
@@ -295,34 +510,38 @@ function ResponsesPage() {
         }
 
         /*
-         * UNREVIEWED RESPONSES ALWAYS COME FIRST.
-         *
-         * Reviewed:
-         *   true = 1
-         *
-         * Unreviewed:
-         *   false = 0
-         *
-         * So false sorts before true.
-         *
-         * Within each group, newest submissions come first.
+         * Still keep unreviewed submissions at the top.
          */
         list.sort(
           (
             a,
             b,
           ) => {
+            const aState =
+              responseCardState(
+                a,
+              );
+
+            const bState =
+              responseCardState(
+                b,
+              );
+
+            const aPending =
+              aState ===
+              "unreviewed";
+
+            const bPending =
+              bState ===
+              "unreviewed";
+
             if (
-              Boolean(
-                a.reviewed,
-              ) !==
-              Boolean(
-                b.reviewed,
-              )
+              aPending !==
+              bPending
             ) {
-              return a.reviewed
-                ? 1
-                : -1;
+              return aPending
+                ? -1
+                : 1;
             }
 
             return (
@@ -356,7 +575,10 @@ function ResponsesPage() {
           (
             submission,
           ) =>
-            !submission.reviewed,
+            responseCardState(
+              submission,
+            ) ===
+            "unreviewed",
         ).length,
       [
         submissions,
@@ -364,7 +586,7 @@ function ResponsesPage() {
     );
 
   /* ==========================================================
-   * NEXT IN LINE RESULTS
+   * NEXT IN LINE
    * ======================================================== */
 
   const nextRows =
@@ -443,9 +665,7 @@ function ResponsesPage() {
         }
       />
 
-      {/* ======================================================
-       * NEXT IN LINE VIEW
-       * ==================================================== */}
+      {/* NEXT IN LINE */}
 
       {scope.isNextInLine ? (
         <>
@@ -489,8 +709,6 @@ function ResponsesPage() {
                   }`}
             </p>
           </div>
-
-          {/* MOBILE NEXT IN LINE */}
 
           <div className="space-y-3 sm:hidden">
             {nextRows.map(
@@ -635,8 +853,6 @@ function ResponsesPage() {
             ) : null}
           </div>
 
-          {/* DESKTOP NEXT IN LINE */}
-
           <div className="surface hidden overflow-hidden sm:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[800px] text-sm">
@@ -724,23 +940,6 @@ function ResponsesPage() {
                       </tr>
                     ),
                   )}
-
-                  {nextRows.length ===
-                  0 ? (
-                    <tr>
-                      <td
-                        colSpan={
-                          6
-                        }
-                        className="px-4 py-8 text-center text-muted-foreground"
-                      >
-                        No Next in
-                        Line
-                        responses
-                        yet.
-                      </td>
-                    </tr>
-                  ) : null}
                 </tbody>
               </table>
             </div>
@@ -748,9 +947,7 @@ function ResponsesPage() {
         </>
       ) : (
         <>
-          {/* ==================================================
-           * NORMAL CONFIRMATION VIEW
-           * ================================================ */}
+          {/* NORMAL CONFIRMATIONS */}
 
           {unreviewedCount >
           0 ? (
@@ -771,10 +968,12 @@ function ResponsesPage() {
                 <div>
                   <p className="text-sm font-semibold text-destructive">
                     {unreviewedCount}{" "}
+
                     {unreviewedCount ===
                     1
                       ? "response needs"
                       : "responses need"}{" "}
+
                     review
                   </p>
 
@@ -782,9 +981,6 @@ function ResponsesPage() {
                     Unreviewed
                     responses are
                     shown first.
-                    Tap here to
-                    show only
-                    those.
                   </p>
                 </div>
               </div>
@@ -813,16 +1009,8 @@ function ResponsesPage() {
 
                         filter ===
                           item
-                          ? item ===
-                            "Unreviewed"
-                            ? "border-destructive/70 bg-destructive/15 text-destructive shadow-[0_0_14px_rgba(239,68,68,0.20)]"
-                            : "border-primary bg-primary/15 text-foreground"
-                          : item ===
-                              "Unreviewed" &&
-                            unreviewedCount >
-                              0
-                            ? "border-destructive/30 bg-destructive/5 text-destructive"
-                            : "border-white/12 bg-white/5 text-muted-foreground hover:text-foreground",
+                          ? "border-primary bg-primary/15 text-foreground"
+                          : "border-white/12 bg-white/5 text-muted-foreground hover:text-foreground",
                       )}
                     >
                       {
@@ -873,9 +1061,7 @@ function ResponsesPage() {
                 }`}
           </p>
 
-          {/* ==================================================
-           * MOBILE NORMAL RESPONSES
-           * ================================================ */}
+          {/* MOBILE */}
 
           <div className="space-y-3 sm:hidden">
             {rows.map(
@@ -909,8 +1095,10 @@ function ResponsesPage() {
                     s,
                   );
 
-                const needsReview =
-                  !s.reviewed;
+                const cardState =
+                  responseCardState(
+                    s,
+                  );
 
                 return (
                   <Link
@@ -925,15 +1113,11 @@ function ResponsesPage() {
                     className={cn(
                       "surface relative block overflow-hidden p-5 transition-all active:scale-[0.985]",
 
-                      needsReview
-                        ? "border border-destructive/70 bg-destructive/10 shadow-[0_0_26px_rgba(239,68,68,0.30)]"
-                        : "",
+                      cardClasses(
+                        cardState,
+                      ),
                     )}
                   >
-                    {needsReview ? (
-                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.16),transparent_58%)]" />
-                    ) : null}
-
                     <div className="relative">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
@@ -942,9 +1126,19 @@ function ResponsesPage() {
                               className={cn(
                                 "text-xl",
 
-                                needsReview
-                                  ? "text-destructive"
-                                  : "",
+                                cardState ===
+                                  "accepted"
+                                  ? "text-success"
+                                  : cardState ===
+                                      "declined"
+                                    ? "text-destructive"
+                                    : cardState ===
+                                        "nf_issue"
+                                      ? "text-warning"
+                                      : cardState ===
+                                          "unreviewed"
+                                        ? "text-destructive"
+                                        : "",
                               )}
                             >
                               {
@@ -952,18 +1146,8 @@ function ResponsesPage() {
                               }
                             </h2>
 
-                            {needsReview ? (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-destructive shadow-[0_0_10px_rgba(239,68,68,0.20)]">
-                                <CircleAlert className="size-3" />
-
-                                Needs review
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest text-success">
-                                <CheckCircle2 className="size-3" />
-
-                                Reviewed
-                              </span>
+                            {stateBadge(
+                              cardState,
                             )}
                           </div>
 
@@ -975,15 +1159,7 @@ function ResponsesPage() {
                           </p>
                         </div>
 
-                        <ArrowRight
-                          className={cn(
-                            "mt-1 size-5 shrink-0",
-
-                            needsReview
-                              ? "text-destructive"
-                              : "text-muted-foreground",
-                          )}
-                        />
+                        <ArrowRight className="mt-1 size-5 shrink-0 text-muted-foreground" />
                       </div>
 
                       <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4">
@@ -1031,15 +1207,7 @@ function ResponsesPage() {
                           </p>
                         </div>
 
-                        <div
-                          className={cn(
-                            "col-span-2 flex items-center gap-2 border-t pt-3 text-xs",
-
-                            needsReview
-                              ? "border-destructive/20 text-destructive/80"
-                              : "border-white/10 text-muted-foreground",
-                          )}
-                        >
+                        <div className="col-span-2 flex items-center gap-2 border-t border-white/10 pt-3 text-xs text-muted-foreground">
                           <CalendarDays className="size-3.5" />
 
                           Submitted{" "}
@@ -1054,21 +1222,9 @@ function ResponsesPage() {
                 );
               },
             )}
-
-            {rows.length ===
-            0 &&
-            !isLoading ? (
-              <div className="surface p-8 text-center text-sm text-muted-foreground">
-                No responses
-                match this
-                filter.
-              </div>
-            ) : null}
           </div>
 
-          {/* ==================================================
-           * DESKTOP NORMAL RESPONSES
-           * ================================================ */}
+          {/* DESKTOP */}
 
           <div className="surface hidden overflow-hidden sm:block">
             <div className="overflow-x-auto">
@@ -1110,8 +1266,10 @@ function ResponsesPage() {
                     (
                       s,
                     ) => {
-                      const needsReview =
-                        !s.reviewed;
+                      const cardState =
+                        responseCardState(
+                          s,
+                        );
 
                       return (
                         <tr
@@ -1119,11 +1277,21 @@ function ResponsesPage() {
                             s.id
                           }
                           className={cn(
-                            "relative border-b border-border/60 transition-colors last:border-0",
+                            "border-b border-border/60 transition-colors last:border-0",
 
-                            needsReview
-                              ? "bg-destructive/10 shadow-[inset_4px_0_0_rgba(239,68,68,0.90),0_0_18px_rgba(239,68,68,0.18)] hover:bg-destructive/15"
-                              : "hover:bg-white/[0.025]",
+                            cardState ===
+                              "accepted"
+                              ? "bg-success/10 shadow-[inset_4px_0_0_rgba(34,197,94,0.85)]"
+                              : cardState ===
+                                  "declined"
+                                ? "bg-destructive/10 shadow-[inset_4px_0_0_rgba(239,68,68,0.90)]"
+                                : cardState ===
+                                    "nf_issue"
+                                  ? "bg-warning/10 shadow-[inset_4px_0_0_rgba(234,179,8,0.90)]"
+                                  : cardState ===
+                                      "unreviewed"
+                                    ? "bg-destructive/10 shadow-[inset_4px_0_0_rgba(239,68,68,0.90),0_0_18px_rgba(239,68,68,0.16)]"
+                                    : "hover:bg-white/[0.025]",
                           )}
                         >
                           <td className="px-4 py-4 font-medium">
@@ -1133,13 +1301,7 @@ function ResponsesPage() {
                                 id:
                                   s.id,
                               }}
-                              className={cn(
-                                "hover:text-accent",
-
-                                needsReview
-                                  ? "font-semibold text-destructive"
-                                  : "",
-                              )}
+                              className="hover:text-accent"
                             >
                               {
                                 s.country
@@ -1148,24 +1310,11 @@ function ResponsesPage() {
                           </td>
 
                           <td className="px-4 py-4">
-                            {needsReview ? (
-                              <Link
-                                to="/admin/responses/$id"
-                                params={{
-                                  id:
-                                    s.id,
-                                }}
-                                className="inline-flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-destructive shadow-[0_0_10px_rgba(239,68,68,0.18)]"
-                              >
-                                <CircleAlert className="size-3.5" />
-
-                                Needs review
-                              </Link>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-success">
-                                <CheckCircle2 className="size-3.5" />
-
-                                Reviewed
+                            {stateBadge(
+                              cardState,
+                            ) ?? (
+                              <span className="text-xs text-muted-foreground">
+                                —
                               </span>
                             )}
                           </td>
@@ -1218,23 +1367,6 @@ function ResponsesPage() {
                       );
                     },
                   )}
-
-                  {rows.length ===
-                  0 &&
-                  !isLoading ? (
-                    <tr>
-                      <td
-                        colSpan={
-                          7
-                        }
-                        className="px-4 py-8 text-center text-muted-foreground"
-                      >
-                        No responses
-                        match this
-                        filter.
-                      </td>
-                    </tr>
-                  ) : null}
                 </tbody>
               </table>
             </div>
