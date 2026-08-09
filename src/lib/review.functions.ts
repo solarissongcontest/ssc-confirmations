@@ -166,30 +166,19 @@ const optionalReasonSchema =
     .optional()
     .default("");
 
-function validateReason(
-  status:
-    ReviewStatus |
-    NfReviewStatus,
-  reason:
-    string,
-) {
-  /*
-   * ACCEPTING DOES NOT REQUIRE A REASON.
-   *
-   * Every other moderation action still does.
-   */
-  if (
-    status !==
-      "accepted" &&
-    !reason.trim()
-  ) {
-    throw new Error(
-      "A reason is required for this action.",
+const requiredReasonSchema =
+  z
+    .string()
+    .trim()
+    .min(
+      1,
+      "A reason is required.",
+    )
+    .max(
+      2000,
     );
-  }
-}
 
-function publicReason(
+function requireReasonUnlessAccepted(
   status:
     ReviewStatus |
     NfReviewStatus,
@@ -200,13 +189,19 @@ function publicReason(
     status ===
     "accepted"
   ) {
-    return null;
+    return;
   }
 
-  return reason.trim();
+  if (
+    !reason.trim()
+  ) {
+    throw new Error(
+      "A reason is required for this action.",
+    );
+  }
 }
 
-function historyReason(
+function participantReason(
   status:
     ReviewStatus |
     NfReviewStatus,
@@ -214,10 +209,30 @@ function historyReason(
     string,
 ) {
   /*
-   * Keep a non-empty audit value for accepted entries in case
-   * the history table requires reason NOT NULL.
+   * Accepted songs intentionally have NO public reason.
+   */
+  if (
+    status ===
+    "accepted"
+  ) {
+    return null;
+  }
+
+  return reason.trim();
+}
+
+function auditReason(
+  status:
+    ReviewStatus |
+    NfReviewStatus,
+  reason:
+    string,
+) {
+  /*
+   * Some existing databases may have submission_review_history.reason
+   * as NOT NULL, so accepted entries get a harmless audit value.
    *
-   * This is NOT stored as the participant-facing review_reason.
+   * It is not shown as a participant-facing reason.
    */
   if (
     status ===
@@ -276,7 +291,7 @@ export const reviewInternalEntry =
             context.userId,
           );
 
-        validateReason(
+        requireReasonUnlessAccepted(
           data.status,
           data.reason,
         );
@@ -321,7 +336,7 @@ export const reviewInternalEntry =
                 data.status,
 
               review_reason:
-                publicReason(
+                participantReason(
                   data.status,
                   data.reason,
                 ),
@@ -372,7 +387,7 @@ export const reviewInternalEntry =
                 data.status,
 
               reason:
-                historyReason(
+                auditReason(
                   data.status,
                   data.reason,
                 ),
@@ -448,7 +463,7 @@ export const reviewNationalFinalEntry =
             context.userId,
           );
 
-        validateReason(
+        requireReasonUnlessAccepted(
           data.status,
           data.reason,
         );
@@ -525,7 +540,7 @@ export const reviewNationalFinalEntry =
                 data.status,
 
               review_reason:
-                publicReason(
+                participantReason(
                   data.status,
                   data.reason,
                 ),
@@ -556,27 +571,35 @@ export const reviewNationalFinalEntry =
           );
         }
 
-        /*
-         * If the removed song was the NF winner,
-         * clear the winner automatically.
-         */
         if (
           removed &&
           nationalFinal.winning_entry_id ===
             entry.id
         ) {
-          await db
-            .from(
-              "national_finals",
-            )
-            .update({
-              winning_entry_id:
-                null,
-            })
-            .eq(
-              "id",
-              nationalFinal.id,
+          const {
+            error:
+              clearWinnerError,
+          } =
+            await db
+              .from(
+                "national_finals",
+              )
+              .update({
+                winning_entry_id:
+                  null,
+              })
+              .eq(
+                "id",
+                nationalFinal.id,
+              );
+
+          if (
+            clearWinnerError
+          ) {
+            throw new Error(
+              clearWinnerError.message,
             );
+          }
         }
 
         const {
@@ -607,7 +630,7 @@ export const reviewNationalFinalEntry =
                 data.status,
 
               reason:
-                historyReason(
+                auditReason(
                   data.status,
                   data.reason,
                 ),
@@ -638,20 +661,8 @@ export const reviewNationalFinalEntry =
 /* ============================================================
  * NF WINNER CHANGE
  *
- * Winner changes STILL require a visible reason.
+ * Winner changes still require a reason.
  * ========================================================== */
-
-const requiredReasonSchema =
-  z
-    .string()
-    .trim()
-    .min(
-      1,
-      "A reason is required.",
-    )
-    .max(
-      2000,
-    );
 
 export const setWinningEntryWithReason =
   createServerFn({
