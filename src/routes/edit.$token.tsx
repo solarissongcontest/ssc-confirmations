@@ -25,6 +25,10 @@ import {
 } from "@/components/ConfirmationForm";
 
 import {
+  SubmissionReviewStatus,
+} from "@/components/SubmissionReviewStatus";
+
+import {
   Button,
 } from "@/components/ui/button";
 
@@ -69,14 +73,14 @@ function EditSubmissionPage() {
         false,
     });
 
-  if (isLoading) {
+  if (
+    isLoading
+  ) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-16">
         <div className="surface p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            Loading your
-            confirmation…
-          </p>
+          Loading your
+          confirmation…
         </div>
       </main>
     );
@@ -85,13 +89,17 @@ function EditSubmissionPage() {
   const result =
     data as
       | {
-          valid?: boolean;
+          valid?:
+            boolean;
 
-          reason?: string;
+          reason?:
+            string;
 
-          submission?: any;
+          submission?:
+            any;
 
-          round?: any;
+          round?:
+            any;
         }
       | undefined;
 
@@ -105,7 +113,14 @@ function EditSubmissionPage() {
       "editing_closed";
 
     return (
-      <main className="mx-auto max-w-2xl px-4 py-16">
+      <main className="mx-auto w-full max-w-2xl space-y-6 px-4 py-10 sm:py-16">
+        <SubmissionReviewStatus
+          mode="token"
+          token={
+            token
+          }
+        />
+
         <div className="surface p-8 text-center">
           <LockKeyhole className="mx-auto mb-4 size-8 text-muted-foreground" />
 
@@ -117,8 +132,8 @@ function EditSubmissionPage() {
 
           <p className="mt-3 text-sm text-muted-foreground">
             {editingClosed
-              ? "The organiser has closed submission editing for this round or edition. Your existing response is still saved."
-              : "The link may have expired, been revoked, already been used, or the response may have been locked by the contest administration."}
+              ? "Your response and organiser review are still saved, but editing is currently disabled."
+              : "The link may have expired, been revoked or already been used."}
           </p>
 
           <Button
@@ -139,8 +154,8 @@ function EditSubmissionPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:py-16">
-      <header className="mb-8 text-center">
+    <main className="mx-auto w-full max-w-2xl space-y-6 px-4 py-10 sm:py-16">
+      <header className="text-center">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
           {
             result.round
@@ -164,15 +179,29 @@ function EditSubmissionPage() {
               .name
           }
         </p>
-
-        <p className="mt-3 text-xs text-muted-foreground">
-          You can edit this
-          response even if
-          the confirmation
-          round itself has
-          already closed.
-        </p>
       </header>
+
+      <SubmissionReviewStatus
+        mode="token"
+        token={
+          token
+        }
+      />
+
+      <div className="surface border border-accent/25 p-4">
+        <p className="text-sm font-medium">
+          Editing your
+          existing response
+        </p>
+
+        <p className="mt-1 text-xs text-muted-foreground">
+          If you replace or
+          change your entry,
+          the organisers will
+          need to check it
+          again.
+        </p>
+      </div>
 
       <ConfirmationForm
         round={
