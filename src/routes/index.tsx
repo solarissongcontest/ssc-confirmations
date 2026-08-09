@@ -5,17 +5,24 @@ import {
 
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 import {
   Lock,
+  Pencil,
 } from "lucide-react";
 
 import {
+  findMySubmission,
   getPublicRounds,
   type PublicRound,
 } from "@/lib/public.functions";
+
+import {
+  useServerFn,
+} from "@tanstack/react-start";
 
 import {
   ConfirmationForm,
@@ -35,6 +42,10 @@ import {
 } from "@/lib/ssc";
 
 import {
+  getBrowserSessionId,
+} from "@/lib/session";
+
+import {
   supabase,
 } from "@/integrations/supabase/client";
 
@@ -50,35 +61,24 @@ export const Route =
           title:
             "Solaris Song Contest — Participation Confirmations",
         },
-        {
-          name:
-            "description",
-
-          content:
-            "Confirm your delegation's participation, choose your selection method and submit your song for the Solaris Song Contest.",
-        },
-        {
-          property:
-            "og:title",
-
-          content:
-            "Solaris Song Contest — Participation Confirmations",
-        },
-        {
-          property:
-            "og:description",
-
-          content:
-            "Confirm your delegation's participation, choose your selection method and submit your song.",
-        },
       ],
     }),
 
-    loader: () =>
-      getPublicRounds(),
+    loader:
+      () =>
+        getPublicRounds(),
 
-    component: Index,
+    component:
+      Index,
   });
+
+type MySubmission = {
+  found: boolean;
+
+  can_edit?: boolean;
+
+  submission?: any;
+};
 
 /* ============================================================
  * COUNTDOWN
@@ -93,24 +93,11 @@ function formatCountdown(
     return "OPENS SOON";
   }
 
-  const target =
+  const difference =
     new Date(
       opensAt,
-    ).getTime();
-
-  const now =
+    ).getTime() -
     Date.now();
-
-  const difference =
-    target - now;
-
-  if (
-    !Number.isFinite(
-      target,
-    )
-  ) {
-    return "OPENS SOON";
-  }
 
   if (
     difference <= 0
@@ -135,15 +122,19 @@ function formatCountdown(
 
   const hours =
     Math.floor(
-      (totalSeconds %
-        86400) /
+      (
+        totalSeconds %
+        86400
+      ) /
         3600,
     );
 
   const minutes =
     Math.floor(
-      (totalSeconds %
-        3600) /
+      (
+        totalSeconds %
+        3600
+      ) /
         60,
     );
 
@@ -151,24 +142,26 @@ function formatCountdown(
     totalSeconds %
     60;
 
-  if (days > 0) {
+  if (
+    days > 0
+  ) {
     return `OPENS IN ${days}D ${hours}H ${minutes}M`;
   }
 
-  if (hours > 0) {
+  if (
+    hours > 0
+  ) {
     return `OPENS IN ${hours}H ${minutes}M`;
   }
 
-  if (minutes > 0) {
+  if (
+    minutes > 0
+  ) {
     return `OPENS IN ${minutes}M ${seconds}S`;
   }
 
   return `OPENS IN ${seconds}S`;
 }
-
-/* ============================================================
- * STATE BADGE
- * ========================================================== */
 
 function StateBadge({
   state,
@@ -183,7 +176,8 @@ function StateBadge({
   const label =
     state === "open"
       ? "OPEN"
-      : state === "full"
+      : state ===
+          "full"
         ? "FULL"
         : state ===
             "scheduled"
@@ -198,7 +192,8 @@ function StateBadge({
       className={cn(
         "shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold tracking-widest",
 
-        state === "open"
+        state ===
+          "open"
           ? "bg-success/15 text-success"
           : state ===
               "full"
@@ -209,7 +204,9 @@ function StateBadge({
               : "bg-muted text-muted-foreground",
       )}
     >
-      {label}
+      {
+        label
+      }
     </span>
   );
 }
@@ -219,13 +216,27 @@ function Index() {
     PublicRound[] =
     Route.useLoaderData();
 
+  const findMine =
+    useServerFn(
+      findMySubmission,
+    );
+
+  const sessionId =
+    useMemo(
+      () =>
+        getBrowserSessionId(),
+      [],
+    );
+
   const [
     rounds,
     setRounds,
   ] =
     useState<
       PublicRound[]
-    >(initial);
+    >(
+      initial,
+    );
 
   const [
     selectedId,
@@ -233,7 +244,20 @@ function Index() {
   ] =
     useState<
       string | null
-    >(null);
+    >(
+      null,
+    );
+
+  const [
+    mine,
+    setMine,
+  ] =
+    useState<
+      Record<
+        string,
+        MySubmission
+      >
+    >({});
 
   const [
     tick,
@@ -242,7 +266,82 @@ function Index() {
     useState(0);
 
   /* ==========================================================
-   * LIVE ROUND UPDATES
+   * FIND THIS BROWSER'S RESPONSES
+   * ======================================================== */
+
+  useEffect(() => {
+    if (
+      !sessionId ||
+      rounds.length ===
+        0
+    ) {
+      return;
+    }
+
+    let cancelled =
+      false;
+
+    void (async () => {
+      const entries =
+        await Promise.all(
+          rounds.map(
+            async (
+              round,
+            ) => {
+              try {
+                const result =
+                  await findMine({
+                    data: {
+                      round_id:
+                        round.id,
+
+                      browser_session_id:
+                        sessionId,
+                    },
+                  });
+
+                return [
+                  round.id,
+                  result as MySubmission,
+                ] as const;
+              } catch {
+                return [
+                  round.id,
+                  {
+                    found:
+                      false,
+                  },
+                ] as const;
+              }
+            },
+          ),
+        );
+
+      if (
+        cancelled
+      ) {
+        return;
+      }
+
+      setMine(
+        Object.fromEntries(
+          entries,
+        ),
+      );
+    })();
+
+    return () => {
+      cancelled =
+        true;
+    };
+  }, [
+    rounds,
+    sessionId,
+    findMine,
+  ]);
+
+  /* ==========================================================
+   * LIVE
    * ======================================================== */
 
   useEffect(() => {
@@ -255,7 +354,8 @@ function Index() {
         .on(
           "postgres_changes",
           {
-            event: "*",
+            event:
+              "*",
 
             schema:
               "public",
@@ -268,22 +368,24 @@ function Index() {
           ) => {
             const row =
               payload.new as {
-                round_id?: string;
+                round_id?:
+                  string;
 
-                submitted_count?: number;
+                submitted_count?:
+                  number;
               };
 
             if (
-              !row?.round_id
+              !row.round_id
             ) {
               return;
             }
 
             setRounds(
               (
-                list,
+                current,
               ) =>
-                list.map(
+                current.map(
                   (
                     round,
                   ) =>
@@ -305,7 +407,8 @@ function Index() {
         .on(
           "postgres_changes",
           {
-            event: "*",
+            event:
+              "*",
 
             schema:
               "public",
@@ -322,16 +425,16 @@ function Index() {
               };
 
             if (
-              !row?.id
+              !row.id
             ) {
               return;
             }
 
             setRounds(
               (
-                list,
+                current,
               ) =>
-                list.map(
+                current.map(
                   (
                     round,
                   ) =>
@@ -356,38 +459,26 @@ function Index() {
     };
   }, []);
 
-  /* ==========================================================
-   * LIVE COUNTDOWN + SCHEDULED OPEN/CLOSE RECHECK
-   *
-   * Re-renders every second.
-   * No refresh is needed when a scheduled round opens.
-   * ======================================================== */
-
   useEffect(() => {
     const timer =
       window.setInterval(
-        () => {
+        () =>
           setTick(
             (
               current,
             ) =>
               current +
               1,
-          );
-        },
+          ),
+
         1000,
       );
 
-    return () => {
+    return () =>
       window.clearInterval(
         timer,
       );
-    };
   }, []);
-
-  /* ==========================================================
-   * ROUND STATE
-   * ======================================================== */
 
   const reasonOf = (
     round:
@@ -423,17 +514,6 @@ function Index() {
       ),
     );
 
-  const setSelected = (
-    round:
-      | PublicRound
-      | null,
-  ) => {
-    setSelectedId(
-      round?.id ??
-        null,
-    );
-  };
-
   const selected =
     rounds.find(
       (
@@ -441,36 +521,35 @@ function Index() {
       ) =>
         round.id ===
         selectedId,
-    ) ?? null;
+    ) ??
+    null;
 
-  const openRounds =
-    rounds.filter(
-      (
-        round,
-      ) =>
-        stateOf(
-          round,
-        ) ===
-        "open",
-    );
-
+  /*
+   * Only auto-open when there is literally one round.
+   * If multiple rounds exist, show the chooser so returning
+   * users can select an old closed round and edit it.
+   */
   const active =
     selected ??
-    (openRounds.length ===
-    1
-      ? openRounds[0]!
-      : null);
+    (
+      rounds.length ===
+        1 &&
+      stateOf(
+        rounds[0]!,
+      ) === "open"
+        ? rounds[0]!
+        : null
+    );
 
-  /* ==========================================================
-   * PAGE
-   * ======================================================== */
+  const activeMine =
+    active
+      ? mine[
+          active.id
+        ]
+      : undefined;
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:py-16">
-      {/* ======================================================
-       * HERO
-       * ==================================================== */}
-
       <header className="mb-10 text-center">
         <h1 className="text-solar text-4xl font-normal sm:text-6xl">
           Solaris Song
@@ -479,42 +558,13 @@ function Index() {
 
         <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
           Confirm your
-          participation and
-          submit your entry. It
-          only takes a couple
-          of minutes.
+          participation or
+          return to edit an
+          existing response.
         </p>
       </header>
 
-      {/* ======================================================
-       * NO ROUNDS
-       * ==================================================== */}
-
-      {rounds.length ===
-      0 ? (
-        <div className="surface p-8 text-center">
-          <h2 className="text-lg">
-            No submission
-            rounds are
-            available
-          </h2>
-
-          <p className="mt-2 text-sm text-muted-foreground">
-            Confirmations are
-            currently closed.
-            Please check back
-            later.
-          </p>
-        </div>
-      ) : null}
-
-      {/* ======================================================
-       * ROUND CHOOSER
-       * ==================================================== */}
-
-      {!active &&
-      rounds.length >
-        0 ? (
+      {!active ? (
         <div className="space-y-3">
           {rounds.map(
             (
@@ -525,9 +575,21 @@ function Index() {
                   round,
                 );
 
-              const isOpen =
+              const myResponse =
+                mine[
+                  round.id
+                ];
+
+              const hasMine =
+                Boolean(
+                  myResponse
+                    ?.found,
+                );
+
+              const selectable =
                 state ===
-                "open";
+                  "open" ||
+                hasMine;
 
               return (
                 <button
@@ -536,23 +598,23 @@ function Index() {
                   }
                   type="button"
                   disabled={
-                    !isOpen
+                    !selectable
                   }
                   onClick={() =>
-                    setSelected(
-                      round,
+                    setSelectedId(
+                      round.id,
                     )
                   }
                   className={cn(
                     "surface block w-full p-5 text-left transition-all",
 
-                    isOpen
-                      ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40"
-                      : "cursor-default opacity-70",
+                    selectable
+                      ? "cursor-pointer hover:-translate-y-0.5"
+                      : "cursor-default opacity-65",
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                    <div>
                       <p className="text-xs uppercase tracking-widest text-muted-foreground">
                         {
                           round.edition_name
@@ -580,8 +642,10 @@ function Index() {
                     <div className="mt-4">
                       <Progress
                         value={
-                          (round.response_count /
-                            round.response_limit) *
+                          (
+                            round.response_count /
+                            round.response_limit
+                          ) *
                           100
                         }
                         className="h-1.5"
@@ -590,69 +654,52 @@ function Index() {
                       <p className="mt-2 text-xs text-muted-foreground">
                         {
                           round.response_count
-                        }{" "}
-                        /{" "}
+                        }
+                        {" / "}
                         {
                           round.response_limit
                         }{" "}
-                        spots filled
+                        spots
+                        filled
                       </p>
                     </div>
+                  ) : null}
+
+                  {hasMine ? (
+                    <div className="mt-4 rounded-xl border border-accent/25 bg-accent/10 px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Pencil className="size-4 text-accent" />
+
+                        <p className="text-sm font-medium">
+                          Your
+                          response is
+                          already
+                          submitted
+                        </p>
+                      </div>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {myResponse
+                          ?.can_edit
+                          ? "Tap to edit your response."
+                          : "Editing for this round is currently closed."}
+                      </p>
+                    </div>
+                  ) : state ===
+                    "open" ? (
+                    <p className="mt-3 text-xs font-medium text-accent">
+                      Tap to
+                      submit.
+                    </p>
                   ) : (
                     <p className="mt-3 text-xs text-muted-foreground">
-                      {
-                        round.response_count
-                      }{" "}
-                      responses
-                      received
-                    </p>
-                  )}
-
-                  {state ===
-                  "full" ? (
-                    <p className="mt-3 text-xs text-warning">
-                      This
-                      confirmation
-                      round has
-                      reached its
-                      maximum
-                      number of
-                      submissions.
-                    </p>
-                  ) : null}
-
-                  {state ===
-                  "closed" ? (
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Confirmations
-                      are currently
+                      New
+                      submissions
+                      are
+                      currently
                       closed.
                     </p>
-                  ) : null}
-
-                  {state ===
-                  "scheduled" ? (
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      No refresh
-                      needed. This
-                      round will
-                      become
-                      available
-                      automatically
-                      when the
-                      countdown
-                      reaches zero.
-                    </p>
-                  ) : null}
-
-                  {state ===
-                  "open" ? (
-                    <p className="mt-3 text-xs font-medium text-accent">
-                      The round is
-                      now open. Tap
-                      to continue.
-                    </p>
-                  ) : null}
+                  )}
                 </button>
               );
             },
@@ -660,15 +707,11 @@ function Index() {
         </div>
       ) : null}
 
-      {/* ======================================================
-       * ACTIVE ROUND
-       * ==================================================== */}
-
       {active ? (
         <div className="space-y-6">
           <div className="surface p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
+            <div className="flex items-start justify-between gap-3">
+              <div>
                 <p className="text-xs uppercase tracking-widest text-muted-foreground">
                   {
                     active.edition_name
@@ -692,84 +735,108 @@ function Index() {
               />
             </div>
 
-            {active.response_limit ? (
-              <div className="mt-4">
-                <Progress
-                  value={
-                    (active.response_count /
-                      active.response_limit) *
-                    100
-                  }
-                  className="h-1.5"
-                />
-
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {
-                    active.response_count
-                  }{" "}
-                  /{" "}
-                  {
-                    active.response_limit
-                  }{" "}
-                  spots filled
-                </p>
-              </div>
-            ) : (
-              <p className="mt-3 text-xs text-muted-foreground">
-                {
-                  active.response_count
-                }{" "}
-                responses
-                received
-              </p>
-            )}
-
             {rounds.length >
             1 ? (
               <Button
                 variant="ghost"
                 size="sm"
-                className="mt-3 -ml-2"
+                className="mt-4 -ml-2"
                 onClick={() =>
-                  setSelected(
+                  setSelectedId(
                     null,
                   )
                 }
               >
                 Choose a
-                different round
+                different
+                round
               </Button>
             ) : null}
           </div>
 
-          <ConfirmationForm
-            round={
-              active
-            }
-            availability={reasonOf(
-              active,
-            )}
-          />
+          {activeMine?.found ? (
+            activeMine.can_edit &&
+            activeMine.submission ? (
+              <>
+                <div className="surface border border-accent/25 p-4">
+                  <p className="text-sm font-medium">
+                    Editing your
+                    existing
+                    response
+                  </p>
+
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    The round
+                    itself may
+                    already be
+                    closed. Your
+                    existing
+                    submission can
+                    still be edited
+                    while editing
+                    remains open.
+                  </p>
+                </div>
+
+                <ConfirmationForm
+                  round={
+                    active
+                  }
+                  prefill={
+                    activeMine.submission
+                  }
+                  editToken="__browser_session_edit__"
+                />
+              </>
+            ) : (
+              <div className="surface p-8 text-center">
+                <Lock className="mx-auto size-7 text-muted-foreground" />
+
+                <h2 className="mt-4 text-xl font-semibold">
+                  Editing is
+                  closed
+                </h2>
+
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Your existing
+                  response is
+                  still saved,
+                  but the
+                  organiser has
+                  closed editing
+                  for this round
+                  or edition.
+                </p>
+              </div>
+            )
+          ) : (
+            <ConfirmationForm
+              round={
+                active
+              }
+              availability={reasonOf(
+                active,
+              )}
+            />
+          )}
         </div>
       ) : null}
-<div className="mt-8 text-center">
-  <Button
-    variant="outline"
-    asChild
-  >
-    <Link to="/next-in-line">
-      Next in Line
-    </Link>
-  </Button>
-</div>
-      {/* ======================================================
-       * FOOTER
-       * ==================================================== */}
+
+      <div className="mt-8 text-center">
+        <Button
+          variant="outline"
+          asChild
+        >
+          <Link to="/next-in-line">
+            Next in Line
+          </Link>
+        </Button>
+      </div>
 
       <footer className="mt-12 text-center">
         <Link
           to="/admin"
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
         >
           <Lock className="size-3" />
 
