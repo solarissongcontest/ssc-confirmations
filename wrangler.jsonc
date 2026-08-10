@@ -14,8 +14,7 @@
 
   "secrets": {
     "required": [
-      "SUPABASE_PUBLISHABLE_KEY",
-      "VITE_SUPABASE_PUBLISHABLE_KEY"
+      "SUPABASE_SERVICE_ROLE_KEY"
     ]
   },
 
