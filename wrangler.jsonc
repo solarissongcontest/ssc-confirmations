@@ -6,6 +6,19 @@
     "nodejs_compat"
   ],
   "main": "@tanstack/react-start/server-entry",
+
+  "vars": {
+    "SUPABASE_URL": "https://xwvnrpuqehqcatowxfpx.supabase.co",
+    "VITE_SUPABASE_URL": "https://xwvnrpuqehqcatowxfpx.supabase.co"
+  },
+
+  "secrets": {
+    "required": [
+      "SUPABASE_PUBLISHABLE_KEY",
+      "VITE_SUPABASE_PUBLISHABLE_KEY"
+    ]
+  },
+
   "observability": {
     "enabled": true
   }
