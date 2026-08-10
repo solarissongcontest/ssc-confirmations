@@ -9,7 +9,9 @@
 
   "vars": {
     "SUPABASE_URL": "https://xwvnrpuqehqcatowxfpx.supabase.co",
-    "VITE_SUPABASE_URL": "https://xwvnrpuqehqcatowxfpx.supabase.co"
+    "VITE_SUPABASE_URL": "https://xwvnrpuqehqcatowxfpx.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_v71lEpzAFcaHbPhee-yioA_FP39mWIO",
+    "VITE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_v71lEpzAFcaHbPhee-yioA_FP39mWIO"
   },
 
   "secrets": {
