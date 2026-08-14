@@ -337,6 +337,90 @@ function ResponseDetail() {
       submission,
     );
 
+  const activeNfEntries =
+    nf?.national_final_entries.filter(
+      (
+        entry,
+      ) =>
+        !entry.removed,
+    ) ??
+    [];
+
+  const copyArtists =
+    activeNfEntries
+      .map(
+        (
+          entry,
+        ) =>
+          entry.artist ??
+          "Unknown artist",
+      )
+      .join(
+        "\n",
+      );
+
+  const copySongs =
+    activeNfEntries
+      .map(
+        (
+          entry,
+        ) =>
+          entry.song_title ??
+          "Unknown song",
+      )
+      .join(
+        "\n",
+      );
+
+  const copyArtistSongs =
+    activeNfEntries
+      .map(
+        (
+          entry,
+        ) =>
+          `${entry.artist ?? "Unknown artist"} – ${entry.song_title ?? "Unknown song"}`,
+      )
+      .join(
+        "\n",
+      );
+
+  async function copyNfList(
+    value:
+      string,
+
+    label:
+      string,
+  ) {
+    if (
+      !value
+    ) {
+      toast.error(
+        "There are no active National Final entries to copy.",
+      );
+
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        value,
+      );
+
+      toast.success(
+        `${label} copied`,
+      );
+    } catch (
+      error
+    ) {
+      toast.error(
+        error instanceof
+          Error
+          ? error.message
+          : "Could not copy the list.",
+      );
+    }
+  }
+
   function refresh() {
     void qc.invalidateQueries({
       queryKey: [
@@ -376,11 +460,6 @@ function ResponseDetail() {
 
     refresh();
   }
-
-  /* =========================================================
-   * INTERNAL REVIEW
-   * Accept = NO REASON.
-   * ======================================================= */
 
   async function handleInternalReview(
     status:
@@ -451,11 +530,6 @@ function ResponseDetail() {
       );
     }
   }
-
-  /* =========================================================
-   * NF REVIEW
-   * Accept = NO REASON.
-   * ======================================================= */
 
   async function handleNfReview(
     entryId:
@@ -952,16 +1026,75 @@ function ResponseDetail() {
 
             <p className="mt-1 text-sm text-muted-foreground">
               {
-                nf.national_final_entries.filter(
-                  (
-                    entry,
-                  ) =>
-                    !entry.removed,
-                ).length
+                activeNfEntries.length
               }{" "}
               active entries
             </p>
           </div>
+
+          {/* COPY NF LISTS */}
+
+          {activeNfEntries.length >
+          0 ? (
+            <div className="rounded-xl border border-border bg-secondary/20 p-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Copy National Final entries
+                </p>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Copy this country&apos;s entries in the format you need.
+                </p>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    void copyNfList(
+                      copyArtists,
+                      "Artists",
+                    )
+                  }
+                >
+                  <Copy className="size-4" />
+
+                  Copy artists
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    void copyNfList(
+                      copySongs,
+                      "Songs",
+                    )
+                  }
+                >
+                  <Copy className="size-4" />
+
+                  Copy songs
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    void copyNfList(
+                      copyArtistSongs,
+                      "Artist – song list",
+                    )
+                  }
+                >
+                  <Copy className="size-4" />
+
+                  Copy artist – song
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           {winner ? (
             <div className="rounded-xl border-2 border-accent/50 bg-accent/10 p-5">
