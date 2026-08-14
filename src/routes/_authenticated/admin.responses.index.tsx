@@ -11,10 +11,8 @@ import {
 import {
   ArrowRight,
   CalendarDays,
-  Check,
   CheckCircle2,
   CircleAlert,
-  Copy,
   ExternalLink,
   Search,
   XCircle,
@@ -71,11 +69,6 @@ type CardState =
   | "nf_issue"
   | "accepted";
 
-type CopyType =
-  | "artists"
-  | "songs"
-  | "combined";
-
 /* ============================================================
  * RESPONSE CARD STATE
  * ========================================================== */
@@ -84,6 +77,10 @@ function responseCardState(
   submission:
     AdminSubmission,
 ): CardState {
+  /*
+   * If they haven't actually submitted a song/entry yet,
+   * keep the card completely normal.
+   */
   if (
     !songSubmitted(
       submission,
@@ -145,6 +142,9 @@ function responseCardState(
       return "normal";
     }
 
+    /*
+     * A rejected/removed NF song makes the response yellow.
+     */
     const hasNfProblem =
       entries.some(
         (
@@ -171,6 +171,9 @@ function responseCardState(
           !entry.removed,
       );
 
+    /*
+     * Every active NF entry accepted = green.
+     */
     const allAccepted =
       activeEntries.length >
         0 &&
@@ -188,6 +191,10 @@ function responseCardState(
       return "accepted";
     }
 
+    /*
+     * At least one song exists, but not everything has been
+     * reviewed yet.
+     */
     return "unreviewed";
   }
 
@@ -196,6 +203,11 @@ function responseCardState(
 
 /* ============================================================
  * SORT PRIORITY
+ *
+ * 0 = RED
+ * 1 = NORMAL
+ * 2 = YELLOW
+ * 3 = GREEN
  * ========================================================== */
 
 function statePriority(
@@ -280,6 +292,54 @@ function mobileCardClasses(
   return "";
 }
 
+function desktopRowClasses(
+  state:
+    CardState,
+) {
+  if (
+    state ===
+      "unreviewed" ||
+    state ===
+      "declined"
+  ) {
+    return [
+      "bg-destructive/10",
+      "shadow-[inset_5px_0_0_rgba(239,68,68,0.95),inset_0_0_22px_rgba(239,68,68,0.07),0_0_20px_rgba(239,68,68,0.20)]",
+      "hover:bg-destructive/15",
+    ].join(
+      " ",
+    );
+  }
+
+  if (
+    state ===
+    "nf_issue"
+  ) {
+    return [
+      "bg-warning/10",
+      "shadow-[inset_5px_0_0_rgba(234,179,8,0.95),inset_0_0_22px_rgba(234,179,8,0.06),0_0_20px_rgba(234,179,8,0.17)]",
+      "hover:bg-warning/15",
+    ].join(
+      " ",
+    );
+  }
+
+  if (
+    state ===
+    "accepted"
+  ) {
+    return [
+      "bg-success/10",
+      "shadow-[inset_5px_0_0_rgba(34,197,94,0.90),inset_0_0_22px_rgba(34,197,94,0.06),0_0_20px_rgba(34,197,94,0.16)]",
+      "hover:bg-success/15",
+    ].join(
+      " ",
+    );
+  }
+
+  return "hover:bg-white/[0.025]";
+}
+
 /* ============================================================
  * BADGE
  * ========================================================== */
@@ -344,46 +404,6 @@ function stateBadge(
     <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
       Not submitted
     </span>
-  );
-}
-
-/* ============================================================
- * NF COPY BUTTON
- * ========================================================== */
-
-function CopyButton({
-  label,
-  copied,
-  onClick,
-}: {
-  label: string;
-  copied: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={
-        onClick
-      }
-      className={cn(
-        "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition",
-
-        copied
-          ? "border-success/40 bg-success/15 text-success"
-          : "border-white/12 bg-white/5 text-foreground hover:border-primary/40 hover:bg-primary/10",
-      )}
-    >
-      {copied ? (
-        <Check className="size-3.5" />
-      ) : (
-        <Copy className="size-3.5" />
-      )}
-
-      {copied
-        ? "Copied"
-        : label}
-    </button>
   );
 }
 
@@ -455,98 +475,6 @@ function ResponsesPage() {
     setQ,
   ] =
     useState("");
-
-  const [
-    copiedKey,
-    setCopiedKey,
-  ] =
-    useState<
-      string | null
-    >(
-      null,
-    );
-
-  /* ==========================================================
-   * COPY HELPER
-   * ======================================================== */
-
-  async function copyText(
-    key: string,
-    value: string,
-  ) {
-    try {
-      await navigator.clipboard.writeText(
-        value,
-      );
-
-      setCopiedKey(
-        key,
-      );
-
-      window.setTimeout(
-        () => {
-          setCopiedKey(
-            (
-              current,
-            ) =>
-              current ===
-              key
-                ? null
-                : current,
-          );
-        },
-        1600,
-      );
-    } catch (
-      error
-    ) {
-      console.error(
-        "Could not copy NF list",
-        error,
-      );
-    }
-  }
-
-  /* ==========================================================
-   * NATIONAL FINAL COPY LISTS
-   * ======================================================== */
-
-  const nfCopyRows =
-    useMemo(
-      () => {
-        return (
-          submissions ??
-          []
-        )
-          .filter(
-            (
-              submission,
-            ) =>
-              submission.selection_method ===
-                "national_final" &&
-              (
-                submission
-                  .national_finals
-                  ?.national_final_entries
-                  ?.length ??
-                0
-              ) >
-                0,
-          )
-          .sort(
-            (
-              a,
-              b,
-            ) =>
-              a.country.localeCompare(
-                b.country,
-              ),
-          );
-      },
-      [
-        submissions,
-      ],
-    );
 
   /* ==========================================================
    * NORMAL CONFIRMATIONS
@@ -716,6 +644,17 @@ function ResponsesPage() {
             );
         }
 
+        /*
+         * GROUP BY CARD COLOUR:
+         *
+         * 1. RED
+         * 2. NORMAL
+         * 3. YELLOW
+         * 4. GREEN
+         *
+         * Within RED:
+         * unreviewed before already-declined entries.
+         */
         list.sort(
           (
             a,
@@ -746,11 +685,15 @@ function ResponsesPage() {
               return priorityDifference;
             }
 
+            /*
+             * Both red, so requests waiting for review come
+             * before already-declined entries.
+             */
             if (
               statePriority(
                 aState,
               ) ===
-                0 &&
+              0 &&
               aState !==
                 bState
             ) {
@@ -769,6 +712,9 @@ function ResponsesPage() {
               }
             }
 
+            /*
+             * Newest first inside each group.
+             */
             return (
               new Date(
                 b.submitted_at,
@@ -1295,226 +1241,6 @@ function ResponsesPage() {
               />
             </div>
           </div>
-
-          {/* ==================================================
-           * NATIONAL FINAL COPY LISTS
-           * ================================================ */}
-
-          {nfCopyRows.length >
-          0 ? (
-            <section className="space-y-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.14em] text-accent">
-                  National finals
-                </p>
-
-                <h2 className="mt-1 text-2xl">
-                  Copy entry lists
-                </h2>
-
-                <p className="mt-1 max-w-xl text-xs text-muted-foreground">
-                  Copy each
-                  country's NF
-                  artists, songs,
-                  or complete
-                  artist – song
-                  list separately.
-                </p>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-2">
-                {nfCopyRows.map(
-                  (
-                    submission,
-                  ) => {
-                    const entries =
-                      submission
-                        .national_finals
-                        ?.national_final_entries ??
-                      [];
-
-                    const artists =
-                      entries
-                        .map(
-                          (
-                            entry,
-                          ) =>
-                            entry.artist,
-                        )
-                        .filter(
-                          Boolean,
-                        )
-                        .join(
-                          "\n",
-                        );
-
-                    const songs =
-                      entries
-                        .map(
-                          (
-                            entry,
-                          ) =>
-                            entry.song_title,
-                        )
-                        .filter(
-                          Boolean,
-                        )
-                        .join(
-                          "\n",
-                        );
-
-                    const combined =
-                      entries
-                        .map(
-                          (
-                            entry,
-                          ) =>
-                            `${entry.artist} – ${entry.song_title}`,
-                        )
-                        .join(
-                          "\n",
-                        );
-
-                    const artistKey =
-                      `${submission.id}:artists`;
-
-                    const songKey =
-                      `${submission.id}:songs`;
-
-                    const combinedKey =
-                      `${submission.id}:combined`;
-
-                    return (
-                      <div
-                        key={
-                          submission.id
-                        }
-                        className="surface overflow-hidden p-5"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <h3 className="text-xl font-medium">
-                              {
-                                submission.country
-                              }
-                            </h3>
-
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {submission
-                                .national_finals
-                                ?.nf_name ??
-                                "National Final"}
-
-                              {" · "}
-
-                              {
-                                entries.length
-                              }{" "}
-
-                              {entries.length ===
-                              1
-                                ? "entry"
-                                : "entries"}
-                            </p>
-                          </div>
-
-                          <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] uppercase tracking-widest text-accent">
-                            NF
-                          </span>
-                        </div>
-
-                        <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                          <CopyButton
-                            label="Artists"
-                            copied={
-                              copiedKey ===
-                              artistKey
-                            }
-                            onClick={() =>
-                              void copyText(
-                                artistKey,
-                                artists,
-                              )
-                            }
-                          />
-
-                          <CopyButton
-                            label="Songs"
-                            copied={
-                              copiedKey ===
-                              songKey
-                            }
-                            onClick={() =>
-                              void copyText(
-                                songKey,
-                                songs,
-                              )
-                            }
-                          />
-
-                          <CopyButton
-                            label="Artist – Song"
-                            copied={
-                              copiedKey ===
-                              combinedKey
-                            }
-                            onClick={() =>
-                              void copyText(
-                                combinedKey,
-                                combined,
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
-                          {entries.map(
-                            (
-                              entry,
-                              index,
-                            ) => (
-                              <div
-                                key={
-                                  entry.id
-                                }
-                                className="flex gap-3 text-sm"
-                              >
-                                <span className="w-5 shrink-0 text-xs text-muted-foreground">
-                                  {
-                                    index +
-                                    1
-                                  }.
-                                </span>
-
-                                <span className="min-w-0">
-                                  <span className="font-medium">
-                                    {
-                                      entry.artist
-                                    }
-                                  </span>
-
-                                  <span className="text-muted-foreground">
-                                    {" "}
-                                    –{" "}
-                                  </span>
-
-                                  <span>
-                                    {
-                                      entry.song_title
-                                    }
-                                  </span>
-                                </span>
-                              </div>
-                            ),
-                          )}
-                        </div>
-                      </div>
-                    );
-                  },
-                )}
-              </div>
-            </section>
-          ) : null}
 
           <p className="text-xs text-muted-foreground">
             {isLoading
