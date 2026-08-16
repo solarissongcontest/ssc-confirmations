@@ -209,7 +209,58 @@
 
   body {
     min-height: 100vh;
+    min-height: 100dvh;
     margin: 0;
+
+    position: relative;
+    isolation: isolate;
+
+    overflow-x: hidden;
+
+    /*
+     * The background image is NOT placed on body anymore.
+     * body can grow as long as it needs without stretching
+     * or ending the artwork.
+     */
+    background: transparent;
+
+    color: var(--color-foreground);
+
+    font-family: var(--font-sans);
+    font-weight: 400;
+    letter-spacing: -0.012em;
+
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /*
+   * ==========================================================
+   * FIXED GLOBAL BACKGROUND
+   *
+   * This layer is permanently attached to the viewport.
+   *
+   * It does NOT grow with the page.
+   * It does NOT scroll away.
+   * It does NOT disappear on long pages.
+   *
+   * Only the content/cards move over it.
+   * ======================================================== */
+
+  body::before {
+    content: "";
+
+    position: fixed;
+    inset: 0;
+
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+
+    z-index: -1;
+
+    pointer-events: none;
 
     background-color: var(--color-background);
 
@@ -223,17 +274,16 @@
     background-size: cover;
     background-position: center center;
     background-repeat: no-repeat;
-    background-attachment: fixed;
 
-    color: var(--color-foreground);
+    /*
+     * Helps prevent iOS Safari from repainting/repositioning
+     * the fixed background while scrolling.
+     */
+    transform: translateZ(0);
+    will-change: transform;
 
-    font-family: var(--font-sans);
-    font-weight: 400;
-    letter-spacing: -0.012em;
-
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   h1,
@@ -361,6 +411,7 @@
 }
 
 /* Keep long form questions compact and readable */
+
 .form-question {
   max-width: 28rem;
   font-weight: 500;
@@ -368,12 +419,14 @@
   letter-spacing: -0.025em;
 }
 
-/* slightly tighter labels inside form cards */
+/* Slightly tighter labels inside form cards */
+
 .surface label {
   line-height: 1.18;
 }
 
-/* normal helper copy under labels */
+/* Normal helper copy under labels */
+
 .surface p.text-muted-foreground {
   line-height: 1.38;
 }
@@ -435,7 +488,8 @@
   transform: translateZ(0);
 }
 
-/* bright curved illumination across the glass */
+/* Bright curved illumination across the glass */
+
 .surface::before {
   content: "";
 
@@ -471,7 +525,8 @@
   mix-blend-mode: screen;
 }
 
-/* glossy edge / pseudo-refraction layer */
+/* Glossy edge / pseudo-refraction layer */
+
 .surface::after {
   content: "";
 
@@ -618,9 +673,12 @@
  * ========================================================== */
 
 @media (max-width: 768px) {
-  body {
-    background-attachment: scroll;
-  }
+  /*
+   * No background-attachment override here anymore.
+   *
+   * The global background is a fixed pseudo-element instead,
+   * which works far more reliably on mobile Safari.
+   */
 
   .surface {
     backdrop-filter:
