@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -14,6 +15,7 @@ import {
   KeyRound,
   Lock,
   Pencil,
+  RefreshCw,
 } from "lucide-react";
 
 import {
@@ -21,6 +23,7 @@ import {
 } from "@tanstack/react-start";
 
 import {
+  createBrowserEditToken,
   findMySubmission,
   getPublicRounds,
   type PublicRound,
@@ -95,9 +98,6 @@ type MySubmission = {
 
     country:
       string;
-
-    browser_edit_token?:
-      string | null;
 
     [key: string]:
       unknown;
@@ -244,6 +244,11 @@ function Index() {
       findMySubmission,
     );
 
+  const prepareBrowserEdit =
+    useServerFn(
+      createBrowserEditToken,
+    );
+
   const sessionId =
     useMemo(
       () =>
@@ -281,6 +286,52 @@ function Index() {
         MySubmission
       >
     >({});
+
+  /*
+   * Raw edit tokens only live in React memory.
+   *
+   * The database stores only their hash.
+   */
+  const [
+    browserEditTokens,
+    setBrowserEditTokens,
+  ] =
+    useState<
+      Record<
+        string,
+        string
+      >
+    >({});
+
+  const [
+    editAccessErrors,
+    setEditAccessErrors,
+  ] =
+    useState<
+      Record<
+        string,
+        string | null
+      >
+    >({});
+
+  const [
+    editRetry,
+    setEditRetry,
+  ] =
+    useState(
+      0,
+    );
+
+  /*
+   * Stops the 1.5 second submission polling from creating
+   * multiple tokens simultaneously.
+   */
+  const tokenRequests =
+    useRef(
+      new Set<
+        string
+      >(),
+    );
 
   const [
     tick,
@@ -351,12 +402,6 @@ function Index() {
 
   /*
    * Initial check + polling.
-   *
-   * The polling is intentional:
-   * after ConfirmationForm submits successfully, the submission
-   * already exists in the database. Within a moment this page
-   * detects it and switches to the saved-response/recovery-code
-   * screen.
    */
   useEffect(() => {
     void refreshMine();
@@ -583,10 +628,176 @@ function Index() {
       : undefined;
 
   const browserEditToken =
-    activeMine
-      ?.submission
-      ?.browser_edit_token ??
-    null;
+    active
+      ? browserEditTokens[
+          active.id
+        ] ??
+        null
+      : null;
+
+  const editAccessError =
+    active
+      ? editAccessErrors[
+          active.id
+        ] ??
+        null
+      : null;
+
+  /* ==========================================================
+   * PREPARE SAME-BROWSER EDIT ACCESS
+   *
+   * public_find_my_submission proves that this browser owns the
+   * submission.
+   *
+   * The secure RPC then creates a fresh raw edit token whose
+   * hash is stored in the database.
+   * ======================================================== */
+
+  useEffect(() => {
+    if (
+      !active ||
+      !sessionId ||
+      !activeMine?.found ||
+      !activeMine.can_edit ||
+      !activeMine.submission
+    ) {
+      return;
+    }
+
+    if (
+      browserEditTokens[
+        active.id
+      ]
+    ) {
+      return;
+    }
+
+    if (
+      tokenRequests.current.has(
+        active.id,
+      )
+    ) {
+      return;
+    }
+
+    const roundId =
+      active.id;
+
+    let cancelled =
+      false;
+
+    tokenRequests.current.add(
+      roundId,
+    );
+
+    setEditAccessErrors(
+      (
+        current,
+      ) => ({
+        ...current,
+
+        [roundId]:
+          null,
+      }),
+    );
+
+    void (async () => {
+      try {
+        const result =
+          await prepareBrowserEdit({
+            data: {
+              round_id:
+                roundId,
+
+              browser_session_id:
+                sessionId,
+            },
+          });
+
+        if (
+          cancelled
+        ) {
+          return;
+        }
+
+        if (
+          result.ok &&
+          result.token
+        ) {
+          setBrowserEditTokens(
+            (
+              current,
+            ) => ({
+              ...current,
+
+              [roundId]:
+                result.token,
+            }),
+          );
+
+          return;
+        }
+
+        const message =
+          result.reason ===
+            "locked"
+            ? "This response is locked."
+            : result.reason ===
+                "editing_closed"
+              ? "Editing is no longer enabled for this response."
+              : result.reason ===
+                  "not_found"
+                ? "This browser could not be linked to the response."
+                : "Secure edit access could not be prepared.";
+
+        setEditAccessErrors(
+          (
+            current,
+          ) => ({
+            ...current,
+
+            [roundId]:
+              message,
+          }),
+        );
+      } catch {
+        if (
+          cancelled
+        ) {
+          return;
+        }
+
+        setEditAccessErrors(
+          (
+            current,
+          ) => ({
+            ...current,
+
+            [roundId]:
+              "Secure edit access could not be prepared.",
+          }),
+        );
+      } finally {
+        tokenRequests.current.delete(
+          roundId,
+        );
+      }
+    })();
+
+    return () => {
+      cancelled =
+        true;
+    };
+  }, [
+    active?.id,
+    activeMine?.can_edit,
+    activeMine?.found,
+    activeMine?.submission?.id,
+    browserEditTokens,
+    editRetry,
+    prepareBrowserEdit,
+    sessionId,
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:py-16">
@@ -849,6 +1060,51 @@ function Index() {
                       }
                     />
                   </>
+                ) : editAccessError ? (
+                  <div className="surface p-6 text-center">
+                    <p className="text-sm font-medium">
+                      Could not prepare
+                      secure edit
+                      access
+                    </p>
+
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {
+                        editAccessError
+                      }
+                    </p>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                      onClick={() => {
+                        setEditAccessErrors(
+                          (
+                            current,
+                          ) => ({
+                            ...current,
+
+                            [active.id]:
+                              null,
+                          }),
+                        );
+
+                        setEditRetry(
+                          (
+                            current,
+                          ) =>
+                            current +
+                            1,
+                        );
+                      }}
+                    >
+                      <RefreshCw className="size-4" />
+
+                      Try again
+                    </Button>
+                  </div>
                 ) : (
                   <div className="surface p-6 text-center text-sm text-muted-foreground">
                     Preparing
