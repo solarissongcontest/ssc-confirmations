@@ -1101,6 +1101,99 @@ export const findMySubmission =
       },
     );
 /* ============================================================
+ * CREATE SECURE EDIT TOKEN FOR THIS BROWSER
+ * ========================================================== */
+
+export const createBrowserEditToken =
+  createServerFn({
+    method: "POST",
+  })
+    .inputValidator(
+      (
+        data: {
+          round_id:
+            string;
+
+          browser_session_id:
+            string;
+        },
+      ) =>
+        z
+          .object({
+            round_id:
+              z
+                .string()
+                .uuid(),
+
+            browser_session_id:
+              z
+                .string()
+                .trim()
+                .min(1)
+                .max(80),
+          })
+          .parse(
+            data,
+          ),
+    )
+    .handler(
+      async ({
+        data,
+      }) => {
+        const result =
+          await rpc<{
+            ok:
+              boolean;
+
+            reason?:
+              string;
+
+            submission_id?:
+              string;
+
+            token?:
+              string;
+          }>(
+            "public_create_browser_edit_token",
+            {
+              _round_id:
+                data.round_id,
+
+              _browser_session_id:
+                data.browser_session_id,
+            },
+          );
+
+        if (
+          !result.ok ||
+          !result.token
+        ) {
+          return {
+            ok:
+              false as const,
+
+            reason:
+              result.reason ??
+              "unknown",
+
+            token:
+              null,
+          };
+        }
+
+        return {
+          ok:
+            true as const,
+
+          reason:
+            "ok",
+
+          token:
+            result.token,
+        };
+      },
+    );
+/* ============================================================
  * EDIT LINKS
  * ========================================================== */
 
