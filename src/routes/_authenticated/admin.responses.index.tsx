@@ -60,6 +60,14 @@ const FILTERS = [
   "Song submitted",
   "Song missing",
   "Unreviewed",
+
+  "Songs accepted overall",
+  "NF songs accepted",
+  "Internal songs accepted",
+
+  "Songs declined overall",
+  "NF songs declined",
+  "Internal songs declined",
 ] as const;
 
 type CardState =
@@ -70,6 +78,139 @@ type CardState =
   | "accepted";
 
 /* ============================================================
+ * ACTIVE NATIONAL FINAL ENTRIES
+ *
+ * Removed songs no longer count as part of the NF for:
+ * - card colour
+ * - accepted filters
+ * - declined filters
+ *
+ * This means removing a declined song also removes the
+ * declined/yellow state caused by that song.
+ * ========================================================== */
+
+function activeNfEntries(
+  submission:
+    AdminSubmission,
+) {
+  return (
+    submission
+      .national_finals
+      ?.national_final_entries ??
+    []
+  ).filter(
+    (
+      entry,
+    ) =>
+      !entry.removed &&
+      entry.review_status !==
+        "removed",
+  );
+}
+
+/* ============================================================
+ * ENTRY STATUS HELPERS
+ * ========================================================== */
+
+function hasAcceptedNfSong(
+  submission:
+    AdminSubmission,
+) {
+  if (
+    submission.selection_method !==
+    "national_final"
+  ) {
+    return false;
+  }
+
+  return activeNfEntries(
+    submission,
+  ).some(
+    (
+      entry,
+    ) =>
+      entry.review_status ===
+      "accepted",
+  );
+}
+
+function hasDeclinedNfSong(
+  submission:
+    AdminSubmission,
+) {
+  if (
+    submission.selection_method !==
+    "national_final"
+  ) {
+    return false;
+  }
+
+  return activeNfEntries(
+    submission,
+  ).some(
+    (
+      entry,
+    ) =>
+      entry.review_status ===
+      "declined",
+  );
+}
+
+function hasAcceptedInternalSong(
+  submission:
+    AdminSubmission,
+) {
+  return (
+    submission.selection_method ===
+      "internal" &&
+    submission.internal_entries
+      ?.review_status ===
+      "accepted"
+  );
+}
+
+function hasDeclinedInternalSong(
+  submission:
+    AdminSubmission,
+) {
+  return (
+    submission.selection_method ===
+      "internal" &&
+    submission.internal_entries
+      ?.review_status ===
+      "declined"
+  );
+}
+
+function hasAnyAcceptedSong(
+  submission:
+    AdminSubmission,
+) {
+  return (
+    hasAcceptedInternalSong(
+      submission,
+    ) ||
+    hasAcceptedNfSong(
+      submission,
+    )
+  );
+}
+
+function hasAnyDeclinedSong(
+  submission:
+    AdminSubmission,
+) {
+  return (
+    hasDeclinedInternalSong(
+      submission,
+    ) ||
+    hasDeclinedNfSong(
+      submission,
+    )
+  );
+}
+
+/* ============================================================
  * RESPONSE CARD STATE
  * ========================================================== */
 
@@ -77,10 +218,6 @@ function responseCardState(
   submission:
     AdminSubmission,
 ): CardState {
-  /*
-   * If they haven't actually submitted a song/entry yet,
-   * keep the card completely normal.
-   */
   if (
     !songSubmitted(
       submission,
@@ -123,6 +260,9 @@ function responseCardState(
 
   /* ==========================================================
    * NATIONAL FINAL
+   *
+   * IMPORTANT:
+   * Removed entries are ignored completely here.
    * ======================================================== */
 
   if (
@@ -130,10 +270,9 @@ function responseCardState(
     "national_final"
   ) {
     const entries =
-      submission
-        .national_finals
-        ?.national_final_entries ??
-      [];
+      activeNfEntries(
+        submission,
+      );
 
     if (
       entries.length ===
@@ -143,18 +282,18 @@ function responseCardState(
     }
 
     /*
-     * A rejected/removed NF song makes the response yellow.
+     * Only ACTIVE declined songs make the NF yellow.
+     *
+     * A removed declined entry is no longer part of the NF
+     * and therefore cannot keep the response yellow.
      */
     const hasNfProblem =
       entries.some(
         (
           entry,
         ) =>
-          entry.removed ||
           entry.review_status ===
-            "removed" ||
-          entry.review_status ===
-            "declined",
+          "declined",
       );
 
     if (
@@ -163,21 +302,12 @@ function responseCardState(
       return "nf_issue";
     }
 
-    const activeEntries =
-      entries.filter(
-        (
-          entry,
-        ) =>
-          !entry.removed,
-      );
-
     /*
-     * Every active NF entry accepted = green.
+     * If every remaining active NF entry has been accepted,
+     * the response is green.
      */
     const allAccepted =
-      activeEntries.length >
-        0 &&
-      activeEntries.every(
+      entries.every(
         (
           entry,
         ) =>
@@ -192,8 +322,8 @@ function responseCardState(
     }
 
     /*
-     * At least one song exists, but not everything has been
-     * reviewed yet.
+     * Active entries exist, nothing is declined, but at least
+     * one entry still needs review.
      */
     return "unreviewed";
   }
@@ -290,54 +420,6 @@ function mobileCardClasses(
   }
 
   return "";
-}
-
-function desktopRowClasses(
-  state:
-    CardState,
-) {
-  if (
-    state ===
-      "unreviewed" ||
-    state ===
-      "declined"
-  ) {
-    return [
-      "bg-destructive/10",
-      "shadow-[inset_5px_0_0_rgba(239,68,68,0.95),inset_0_0_22px_rgba(239,68,68,0.07),0_0_20px_rgba(239,68,68,0.20)]",
-      "hover:bg-destructive/15",
-    ].join(
-      " ",
-    );
-  }
-
-  if (
-    state ===
-    "nf_issue"
-  ) {
-    return [
-      "bg-warning/10",
-      "shadow-[inset_5px_0_0_rgba(234,179,8,0.95),inset_0_0_22px_rgba(234,179,8,0.06),0_0_20px_rgba(234,179,8,0.17)]",
-      "hover:bg-warning/15",
-    ].join(
-      " ",
-    );
-  }
-
-  if (
-    state ===
-    "accepted"
-  ) {
-    return [
-      "bg-success/10",
-      "shadow-[inset_5px_0_0_rgba(34,197,94,0.90),inset_0_0_22px_rgba(34,197,94,0.06),0_0_20px_rgba(34,197,94,0.16)]",
-      "hover:bg-success/15",
-    ].join(
-      " ",
-    );
-  }
-
-  return "hover:bg-white/[0.025]";
 }
 
 /* ============================================================
@@ -497,9 +579,9 @@ function ResponsesPage() {
           list =
             list.filter(
               (
-                s,
+                submission,
               ) =>
-                s.participating,
+                submission.participating,
             );
         }
 
@@ -510,9 +592,9 @@ function ResponsesPage() {
           list =
             list.filter(
               (
-                s,
+                submission,
               ) =>
-                !s.participating,
+                !submission.participating,
             );
         }
 
@@ -523,9 +605,9 @@ function ResponsesPage() {
           list =
             list.filter(
               (
-                s,
+                submission,
               ) =>
-                s.selection_method ===
+                submission.selection_method ===
                 "internal",
             );
         }
@@ -537,9 +619,9 @@ function ResponsesPage() {
           list =
             list.filter(
               (
-                s,
+                submission,
               ) =>
-                s.selection_method ===
+                submission.selection_method ===
                 "national_final",
             );
         }
@@ -561,11 +643,11 @@ function ResponsesPage() {
           list =
             list.filter(
               (
-                s,
+                submission,
               ) =>
-                s.participating &&
+                submission.participating &&
                 !songSubmitted(
-                  s,
+                  submission,
                 ),
             );
         }
@@ -577,14 +659,88 @@ function ResponsesPage() {
           list =
             list.filter(
               (
-                s,
+                submission,
               ) =>
                 responseCardState(
-                  s,
+                  submission,
                 ) ===
                 "unreviewed",
             );
         }
+
+        /* ====================================================
+         * ACCEPTED FILTERS
+         * ================================================== */
+
+        if (
+          filter ===
+          "Songs accepted overall"
+        ) {
+          list =
+            list.filter(
+              hasAnyAcceptedSong,
+            );
+        }
+
+        if (
+          filter ===
+          "NF songs accepted"
+        ) {
+          list =
+            list.filter(
+              hasAcceptedNfSong,
+            );
+        }
+
+        if (
+          filter ===
+          "Internal songs accepted"
+        ) {
+          list =
+            list.filter(
+              hasAcceptedInternalSong,
+            );
+        }
+
+        /* ====================================================
+         * DECLINED FILTERS
+         *
+         * Removed NF songs are intentionally excluded.
+         * ================================================== */
+
+        if (
+          filter ===
+          "Songs declined overall"
+        ) {
+          list =
+            list.filter(
+              hasAnyDeclinedSong,
+            );
+        }
+
+        if (
+          filter ===
+          "NF songs declined"
+        ) {
+          list =
+            list.filter(
+              hasDeclinedNfSong,
+            );
+        }
+
+        if (
+          filter ===
+          "Internal songs declined"
+        ) {
+          list =
+            list.filter(
+              hasDeclinedInternalSong,
+            );
+        }
+
+        /* ====================================================
+         * SEARCH
+         * ================================================== */
 
         const term =
           q
@@ -595,52 +751,85 @@ function ResponsesPage() {
           list =
             list.filter(
               (
-                s,
-              ) =>
-                s.country
-                  .toLowerCase()
-                  .includes(
-                    term,
-                  ) ||
+                submission,
+              ) => {
+                const nfEntryMatch =
+                  (
+                    submission
+                      .national_finals
+                      ?.national_final_entries ??
+                    []
+                  ).some(
+                    (
+                      entry,
+                    ) =>
+                      (
+                        entry.artist ??
+                        ""
+                      )
+                        .toLowerCase()
+                        .includes(
+                          term,
+                        ) ||
+                      (
+                        entry.song_title ??
+                        ""
+                      )
+                        .toLowerCase()
+                        .includes(
+                          term,
+                        ),
+                  );
 
-                s.instagram_username
-                  .toLowerCase()
-                  .includes(
-                    term,
-                  ) ||
+                return (
+                  submission.country
+                    .toLowerCase()
+                    .includes(
+                      term,
+                    ) ||
 
-                (
-                  s
-                    .internal_entries
-                    ?.song_title ??
-                  ""
-                )
-                  .toLowerCase()
-                  .includes(
-                    term,
-                  ) ||
+                  submission.instagram_username
+                    .toLowerCase()
+                    .includes(
+                      term,
+                    ) ||
 
-                (
-                  s
-                    .internal_entries
-                    ?.artist ??
-                  ""
-                )
-                  .toLowerCase()
-                  .includes(
-                    term,
-                  ) ||
+                  (
+                    submission
+                      .internal_entries
+                      ?.song_title ??
+                    ""
+                  )
+                    .toLowerCase()
+                    .includes(
+                      term,
+                    ) ||
 
-                (
-                  s
-                    .national_finals
-                    ?.nf_name ??
-                  ""
-                )
-                  .toLowerCase()
-                  .includes(
-                    term,
-                  ),
+                  (
+                    submission
+                      .internal_entries
+                      ?.artist ??
+                    ""
+                  )
+                    .toLowerCase()
+                    .includes(
+                      term,
+                    ) ||
+
+                  (
+                    submission
+                      .national_finals
+                      ?.nf_name ??
+                    ""
+                  )
+                    .toLowerCase()
+                    .includes(
+                      term,
+                    ) ||
+
+                  nfEntryMatch
+                );
+              },
             );
         }
 
@@ -651,10 +840,8 @@ function ResponsesPage() {
          * 2. NORMAL
          * 3. YELLOW
          * 4. GREEN
-         *
-         * Within RED:
-         * unreviewed before already-declined entries.
          */
+
         list.sort(
           (
             a,
@@ -686,14 +873,14 @@ function ResponsesPage() {
             }
 
             /*
-             * Both red, so requests waiting for review come
-             * before already-declined entries.
+             * Within red:
+             * unreviewed entries come before declined entries.
              */
             if (
               statePriority(
                 aState,
               ) ===
-              0 &&
+                0 &&
               aState !==
                 bState
             ) {
@@ -713,7 +900,7 @@ function ResponsesPage() {
             }
 
             /*
-             * Newest first inside each group.
+             * Newest first inside each colour group.
              */
             return (
               new Date(
@@ -1273,7 +1460,7 @@ function ResponsesPage() {
                     : submission
                           .national_finals
                           ?.nf_name
-                      ? `${submission.national_finals.nf_name} (${submission.national_finals.national_final_entries.length})`
+                      ? `${submission.national_finals.nf_name} (${activeNfEntries(submission).length})`
                       : "Not submitted";
 
                 const method =
@@ -1435,7 +1622,7 @@ function ResponsesPage() {
                     : submission
                           .national_finals
                           ?.nf_name
-                      ? `${submission.national_finals.nf_name} (${submission.national_finals.national_final_entries.length})`
+                      ? `${submission.national_finals.nf_name} (${activeNfEntries(submission).length})`
                       : "Not submitted";
 
                 const method =
